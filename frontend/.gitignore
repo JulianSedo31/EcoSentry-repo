@@ -1,0 +1,80 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+node_modules/package-lock.json
+
+# Ignore Node.js dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore PlatformIO build files
+.pio/
+.vscode/
+*.elf
+*.bin
+*.hex
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Ignore compiled React build files
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+
+# Ignore logs and cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Ignore environment variables (API keys, database credentials, etc.)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ignore IDE/editor-specific files
+.DS_Store
+*.swp
+*.swo
+*.swn
+*.idea/
+*.vscode/
+*.history/
+Thumbs.db
+
+# Ignore PlatformIO core dumps
+core*
+
+# Ignore output from builds
+dist/
+build/
