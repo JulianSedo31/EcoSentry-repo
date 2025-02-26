@@ -1,76 +1,76 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
 body {
-  background-color: #EEEEEE; /* Light Gray for background */
+  background-color: #eeeeee; /* Light Gray for background */
   color: #333333; /* Charcoal for text */
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
 /* LAYOUT */
 .layoutContainer {
-    display: flex;
-    height: 100vh;
-    width: 100vw;
+  display: flex;
+  height: 100vh;
+  width: 100vw;
 }
 .layoutNavbar {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    height: 100vh;
-    overflow: hidden; /* Prevents unwanted overflow */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100vh;
+  overflow: hidden; /* Prevents unwanted overflow */
 }
 .layoutMainContent {
-    flex: 1;
-    background: #f4f4f4;
-    overflow: hidden; /* Ensures no content (map) overflows */
+  flex: 1;
+  background: #f4f4f4;
+  overflow: hidden; /* Ensures no content (map) overflows */
 }
-  
+
 /* SIDEBAR */
-.sidebarLayout{
-    display: flex;
-    height: 100vh;
+.sidebarLayout {
+  display: flex;
+  height: 100vh;
 }
-.logo{
+.logo {
   width: 8rem;
 }
 
-.dashboardIcon{
-    font-family: 'Poppins', sans-serif;
-    font-size: 2rem;
-    color: white;
-    margin-right: .5rem;
+.dashboardIcon {
+  font-family: "Poppins", sans-serif;
+  font-size: 2rem;
+  color: white;
+  margin-right: 0.5rem;
 }
-.dashboardTxt{
-    font-family: 'Poppins', sans-serif;
-    font-size: 1rem;
-    text-transform: uppercase;
+.dashboardTxt {
+  font-family: "Poppins", sans-serif;
+  font-size: 1rem;
+  text-transform: uppercase;
 }
 
-.reportsIcon{
-    font-family: 'Poppins', sans-serif;
-    font-size: 2rem;
-    color: white;
-    margin-right: .5rem;
+.reportsIcon {
+  font-family: "Poppins", sans-serif;
+  font-size: 2rem;
+  color: white;
+  margin-right: 0.5rem;
 }
-.reportsTxt{
-    font-family: 'Poppins', sans-serif;
-    font-size: 1rem;
-    text-transform: uppercase;
+.reportsTxt {
+  font-family: "Poppins", sans-serif;
+  font-size: 1rem;
+  text-transform: uppercase;
 }
 .sidebarContent .menuItem {
-    border-radius: .5rem;
-    transition: background 0.3s ease-in-out, transform 0.2s ease-in-out;
-  }
-  
+  border-radius: 0.5rem;
+  transition: background 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
 .sidebarContent .menuItem:hover {
-    transform: scale(1.05); /* Slight zoom effect */
+  transform: scale(1.05); /* Slight zoom effect */
 }
 
 /* NAVBAR */
-.navbarLayout{
-  font-family: 'Poppins', sans-serif;
+.navbarLayout {
+  font-family: "Poppins", sans-serif;
   font-size: 1.5rem;
   text-transform: uppercase;
   font-weight: bold;
-  color: #F7F7F7;
+  color: #f7f7f7;
   display: flex;
   align-items: center;
   justify-content: space-between; /*para ma push sa edge*/
@@ -78,25 +78,76 @@ body {
   height: 4rem;
   margin-top: 1%;
   position: absolute;
-  border-radius: .5rem;
+  border-radius: 0.5rem;
   margin-left: 5rem;
   padding: 0 1rem; /*sa icon*/
   background: rgba(33, 33, 33, 0.7); /* Adds transparency */
   z-index: 1000; /* Ensures it stays on top of the map */
   backdrop-filter: blur(8px); /* Adds a slight blur effect */
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a soft shadow */
-  
 }
-.pageTitle{
+.pageTitle {
   margin: 0;
 }
-.notificationsContainer{
+.notificationsContainer {
   position: relative;
   cursor: pointer;
 }
-.notificationIcon{
-  color: #F7F7F7;
-  font-size: 2rem;
+
+.notificationIcon {
+  color: #f7f7f7;
+  font-size: 1.8rem;
+  transition: 0.3s;
+}
+
+.notificationIcon:hover {
+  color: #ff4d4d; /* Change color on hover */
+}
+
+/* Notification Badge (Displays unread count) */
+.notifBadge {
+  background: red;
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 50%;
+  position: absolute;
+  top: -0.25rem; /* Position the badge */
+  right: -0.25rem;
+}
+
+/* Notification Dropdown */
+.notificationDropdown {
+  position: absolute;
+  top: 2.5rem;
+  right: 0;
+  background: #222;
+  border-radius: 0.2rem;
+  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.2);
+  width: 15rem;
+  max-height: 10rem; /* Max height in rem */
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+/* Individual Notification Items */
+.notificationItem {
+  border-bottom: 0.0625rem solid #444; /* Border thickness in rem */
+  cursor: pointer;
+  transition: 0.3s;
+  font-size: 1rem;
+}
+
+.notificationItem:hover {
+  background: #333;
+}
+
+/* No Notifications Message */
+.noNotifications {
+  padding: 0.5rem; /* Padding in rem */
+  text-align: center;
+  color: gray;
+  font-size: 1.5rem;
 }
 
 /* REPORTS PAGE */
@@ -106,7 +157,7 @@ body {
   margin-left: 4rem;
   padding: 1rem;
   background: #fff;
-  border-radius: .5rem;
+  border-radius: 0.5rem;
   box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -117,10 +168,12 @@ body {
   margin-bottom: 1rem;
 }
 
-.filters input, .filters select, .filters button {
+.filters input,
+.filters select,
+.filters button {
   padding: 0.5rem;
   border: 1px solid #ccc;
-  border-radius: .2rem;
+  border-radius: 0.2rem;
 }
 
 .reports-table {
@@ -128,7 +181,8 @@ body {
   border-collapse: collapse;
 }
 
-.reports-table th, .reports-table td {
+.reports-table th,
+.reports-table td {
   padding: 10px;
   border: 1px solid #ddd;
   text-align: left;
@@ -149,11 +203,121 @@ body {
   background: #436850;
   color: white;
   border: none;
-  border-radius: .2rem;
+  border-radius: 0.2rem;
   cursor: pointer;
 }
 
 .pagination button:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+/* ALERT MODAL */
+/* Modal Overlay (Dark background covering full screen) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7); /* Dark overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* Makes sure the modal is above everything */
+}
+
+/* Modal Content */
+/* Make the map fill the entire screen */
+.map-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Ensure the Leaflet map takes the full space */
+.map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Floating UI - Keeps buttons above the map */
+.floating-ui {
+  position: absolute;
+  top: 10rem;
+  left: 10rem;
+  z-index: 1000; /* Ensures it's above the map */
+}
+
+.test-alert-btn {
+  padding: 10px 15px;
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.test-alert-btn:hover {
+  background: #cc0000;
+}
+
+/* Modal Overlay (Full-screen overlay) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7); /* Dark overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000; /* Higher than map & buttons */
+}
+
+/* Modal Content */
+.modal-content {
+  background: #ff4d4d;
+  color: white;
+  padding: 2rem;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  position: relative;
+}
+
+/* Close Button */
+.close-btn {
+  background: white;
+  color: #ff4d4d;
+  border: none;
+  padding: 10px 20px;
+  margin-top: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 5px;
+}
+
+.close-btn:hover {
+  background: #f7f7f7;
+}
+
+/* DEVICE STATUS */
+.deviceStatus {
+  font-family: "Poppins", sans-serif;
+  text-transform: uppercase;
+  position: absolute;
+  color: white;
+  top: 1.5rem;
+  font-size: 1.5rem;
+  border-radius: 0.5rem;
+  margin-left: 50%;
+  padding: 0 1rem;
+  background: rgba(33, 33, 33, 0.7); /* Adds transparency */
+  z-index: 1000; /* Ensures it stays on top of the map */
+  backdrop-filter: blur(8px); /* Adds a slight blur effect */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Adds a soft shadow */
 }

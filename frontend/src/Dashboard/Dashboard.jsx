@@ -1,44 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+// COMPONENT
+import AlertModal from "../Modals/AlertModal";
+import DeviceStatus from "../Modals/DeviceStatus";
 // MAP
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
+import "leaflet/dist/leaflet.css";
+// CSS
+import "../assets/style.css"; // Import your styles
 
 const localCoordinates = [8.154557, 125.151347]; // Malaybalay Coordinates
 
 const Dashboard = () => {
-  const [detection, setDetection] = useState({ type: "normal", confidence: 100 });
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/latest-detection");
-        const data = await response.json();
-        setDetection(data);
-      } catch (error) {
-        console.error("Error fetching detection data:", error);
-      }
-    };
+  // Function to trigger the alert
+  const triggerAlert = () => {
+    setAlertMessage("Illegal logging detected in Forest A!");
+    setShowAlert(true);
+  };
 
-    fetchData();
-    const interval = setInterval(fetchData, 3000); // Refresh every 3 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+  // Function to close the alert
+  const closeAlert = () => {
+    setShowAlert(false);
+  };
 
   return (
-    <MapContainer center={localCoordinates} zoom={15} style={{ height: "100%", width: "100%" }}>
-      {/* Tile Layer - This loads the actual map */}
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-      {/* IoT Device Marker with Chainsaw Detection Popup */}
-      <Marker position={[8.164687426578574, 125.16148521189409]}>
-        <Popup>
-          <h3>Chainsaw Detection</h3>
-          <p><strong>Type:</strong> {detection.type}</p>
-          <p><strong>Confidence:</strong> {detection.confidence}%</p>
-        </Popup>
-      </Marker>
-    </MapContainer>
+    <div className="map-container">
+      {/* Main container is the map */}
+      {/* Full-screen Map */}
+      <MapContainer center={localCoordinates} zoom={15} className="map">
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Marker position={[8.164687426578574, 125.16148521189409]}>
+          <Popup>Test</Popup>
+        </Marker>
+      </MapContainer>
+      {/* Floating UI buttons*/}
+      <div className="floating-ui">
+        <button onClick={triggerAlert} className="test-alert-btn">
+          Simulate Alerts
+        </button>
+      </div>
+      {/* Alert Modal */}
+      <AlertModal
+        show={showAlert}
+        onClose={closeAlert}
+        alertMessage={alertMessage}
+      />
+      {/* Device Status */}
+      <div className="deviceStatus">
+        <DeviceStatus />
+      </div>
+    </div>
   );
 };
 
