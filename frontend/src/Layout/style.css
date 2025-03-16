@@ -1,0 +1,60 @@
+/* 🔹 Layout Container */
+.layout-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.sidebar-wrapper {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.content-wrapper {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* Ensure the navbar doesn't affect the layout flow */
+.navbar {
+  position: absolute;
+  left: 20%;
+  z-index: 1000; /* Make sure it's above everything */
+}
+
+/* 🔹 Main Content (Navbar + Page Content) */
+.main-content {
+  flex-grow: 1;
+  padding-left: 260px; /* Adjusted for sidebar */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh; /* Make sure it allows full height */
+}
+
+/* 🔹 Page Content (Where pages load) */
+.page-content {
+  width: 100%;
+  max-width: 1200px;
+  margin-top: 80px; /* Adjusted for floating navbar */
+  padding: 20px;
+}
+
+/* 🔹 Responsive Adjustments */
+@media (max-width: 768px) {
+  .main-content {
+    padding-left: 0; /* No extra padding on smaller screens */
+  }
+}

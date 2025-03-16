@@ -1,0 +1,182 @@
+/* SIDEBAR */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center the logo/toggler */
+  padding: 15px;
+  background-color: #27323a;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.sidebar-header:hover {
+  background-color: #27323a;
+}
+
+.sidebar-logo {
+  width: 150px; /* Adjust size when expanded */
+  height: auto;
+  transition: width 0.3s ease-in-out;
+}
+
+.sidebar-collapsed-logo {
+  width: 80px; /* Smaller size when collapsed */
+}
+
+.menu-item {
+  font-size: 15px;
+  font-weight: 300;
+  text-transform: uppercase;
+  transition: all 0.3s ease-in-out;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+/* Active state styling */
+.menu-item.active {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.menu-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background-color: #16c47f;
+}
+
+.menu-item.active span,
+.menu-item.active svg {
+  color: #ffffff !important;
+  font-weight: 500;
+}
+
+/* Hover state */
+.menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(5px);
+}
+
+.menu-item:hover span,
+.menu-item:hover svg {
+  color: #ffffff;
+}
+
+/* Optional: Change text color on hover */
+.menu-item:hover span {
+  color: #27323a; /* Yellow highlight */
+}
+
+/* Optional: Change icon color on hover */
+.menu-item:hover svg {
+  color: #27323a; /* Yellow highlight */
+}
+
+/* NAVBAR */
+.navbar {
+  position: absolute;
+  top: 10px;
+  left: 35%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center; /* Ensures vertical alignment */
+  background: white;
+  padding: 12px 25px;
+  border-radius: 30px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  min-width: 320px;
+  max-width: 400px;
+  width: 90%;
+}
+
+/* Status Section */
+.navbar-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+}
+
+/* Status Label */
+.status-label {
+  font-size: 14px;
+  margin-top: 1rem;
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
+}
+
+/* Status Group (Wraps text + icons) */
+.status-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Individual Status Item */
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Icons */
+.status-icon {
+  font-size: 18px;
+  color: #555;
+}
+
+/* Connection Colors */
+.connected {
+  color: #2ecc71; /* Green */
+}
+.disconnected {
+  color: #e74c3c; /* Red */
+}
+
+/* Battery Text */
+.status-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* Notification Icon */
+.notification-icon {
+  font-size: 20px;
+  cursor: pointer;
+  color: #555;
+  transition: transform 0.2s ease-in-out;
+}
+
+.notification-icon:hover {
+  transform: scale(1.1);
+}
+
+/* 🟢 Responsive Fixes */
+@media (max-width: 480px) {
+  .navbar {
+    min-width: 100px;
+    padding: 10px 15px;
+  }
+
+  .status-label {
+    font-size: 12px;
+  }
+
+  .status-text {
+    font-size: 12px;
+  }
+
+  .status-icon {
+    font-size: 16px;
+  }
+
+  .notification-icon {
+    font-size: 18px;
+  }
+}

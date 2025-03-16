@@ -1,71 +1,94 @@
-import React, { useEffect, useState } from "react";
-// CSS
-import 'bootstrap/dist/css/bootstrap.min.css';
-import '../assets/style.css';
-// IMG
-import logo from "../assets/EcoSentryLogo.png";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+//SIDEBAR
+import { Sidebar, Menu, MenuItem, sidebarClasses } from "react-pro-sidebar";
 // ICONS
-import { RiDashboardFill } from "react-icons/ri";
-import { VscHistory } from "react-icons/vsc";
-// SIDEBAR
-import { CDBSidebar, CDBSidebarContent, CDBSidebarHeader, CDBSidebarMenu, CDBSidebarMenuItem } from 'cdbreact';
-import { NavLink } from 'react-router-dom';
+import { BiSolidDashboard } from "react-icons/bi";
+import { GoHistory } from "react-icons/go";
+import { TbLogout2 } from "react-icons/tb";
+// IMG
+import Logo from "../assets/EcoSentryLogo.png";
+// STYLE
+import "./style.css"; // Custom CSS for styling
 
-const Sidebar = () => {
-    const [status, setStatus] = useState("Checking...");
+function CustomSidebar() {
+  const [isCollapsed, setIsCollapsed] = useState(false); // Sidebar state
+  const location = useLocation();
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchStatus = async () => {
-            try {
-                const response = await fetch("http://localhost:5000/esp32/status");
-                const data = await response.json();
-                if (data.error) {
-                    setStatus("Disconnected ❌");
-                } else {
-                    setStatus("Connected ✅");
-                }
-            } catch (error) {
-                setStatus("Disconnected ❌");
-            }
-        };
+  // Handle navigation
+  const handleNavigation = (path) => {
+    if (path === "logout") {
+      // Clear token and navigate to login
+      localStorage.removeItem("token");
+      navigate("/");
+      return;
+    }
+    navigate(`/app${path}`);
+  };
 
-        fetchStatus();
-        const interval = setInterval(fetchStatus, 5000); // Auto-refresh every 5 seconds
-        return () => clearInterval(interval);
-    }, []);
+  // Check if route is active
+  const isActive = (path) => {
+    if (path === "") {
+      return location.pathname === "/app";
+    }
+    return location.pathname === `/app${path}`;
+  };
 
-    return (
-        <div className="sidebarLayout">
-            <CDBSidebar textColor="#F7F7F7" backgroundColor="#212121">
-                <CDBSidebarHeader>
-                    <a>
-                        <img src={logo} className="logo" alt="EcoSentry Logo" />
-                    </a>
-                </CDBSidebarHeader>
-
-                <CDBSidebarContent className="sidebarContent">
-                    <div style={{ textAlign: "center", padding: "10px", fontWeight: "bold" }}>
-                        ESP32 Status: <span style={{ color: status.includes("Connected") ? "green" : "red" }}>{status}</span>
-                    </div>
-                    <CDBSidebarMenu>
-                        <NavLink exact to="/dashboard" activeClassName="activeClicked">
-                            <CDBSidebarMenuItem className="menuItem" style={{ backgroundColor: location.pathname === "/dashboard" ? "#436850" : "transparent" }}>
-                                <RiDashboardFill className="dashboardIcon" />
-                                <span className="dashboardTxt">dashboard</span>
-                            </CDBSidebarMenuItem>
-                        </NavLink>
-
-                        <NavLink exact to="/reports" activeClassName="activeClicked">
-                            <CDBSidebarMenuItem className="menuItem" style={{ backgroundColor: location.pathname === "/reports" ? "#436850" : "transparent" }}>
-                                <VscHistory className="reportsIcon" />
-                                <span className="reportsTxt">reports</span>
-                            </CDBSidebarMenuItem>
-                        </NavLink>
-                    </CDBSidebarMenu>
-                </CDBSidebarContent>
-            </CDBSidebar>
+  return (
+    <div className="sidebar-container">
+      <Sidebar
+        collapsed={isCollapsed} // Controls sidebar collapse
+        rootStyles={{
+          [`.${sidebarClasses.container}`]: {
+            backgroundColor: "#27323a", // Sidebar background color
+            color: "white",
+            minHeight: "100vh",
+            transition: "width 0.3s ease-in-out",
+          },
+        }}
+      >
+        {/* Sidebar Header - Clickable Logo */}
+        <div
+          className="sidebar-header"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          <img
+            src={Logo}
+            alt="EcoSentryLogo"
+            className={`sidebar-logo ${
+              isCollapsed ? "sidebar-collapsed-logo" : ""
+            }`}
+          />
         </div>
-    );
-};
 
-export default Sidebar;
+        {/* Sidebar Menu */}
+        <Menu>
+          <MenuItem
+            icon={<BiSolidDashboard size={30} />}
+            onClick={() => handleNavigation("")}
+            className={`menu-item ${isActive("") ? "active" : ""}`}
+          >
+            Dashboard
+          </MenuItem>
+          <MenuItem
+            icon={<GoHistory size={25} />}
+            onClick={() => handleNavigation("/reports")}
+            className={`menu-item ${isActive("/reports") ? "active" : ""}`}
+          >
+            Reports
+          </MenuItem>
+          <MenuItem
+            icon={<TbLogout2 size={30} />}
+            onClick={() => handleNavigation("logout")}
+            className="menu-item"
+          >
+            Logout
+          </MenuItem>
+        </Menu>
+      </Sidebar>
+    </div>
+  );
+}
+
+export default CustomSidebar;

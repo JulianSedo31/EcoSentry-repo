@@ -1,25 +1,22 @@
-import React from "react";
-// COMPONENTS
-import Sidebar from "../Navigation/Sidebar";
-import Navbar from "../Navigation/Navbar";
-// ROUTER
-import { Outlet, useLocation } from "react-router-dom"; // Allows nested routes, para mo appear tanan sa page and layout
+import { Outlet } from "react-router-dom";
+import Sidebar from "../navigation/Sidebar";
+import Navbar from "../navigation/Navbar";
+import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap
+import "./style.css"; // Make sure to import the styles
 
 function Layout() {
-  const location = useLocation(); // Added useLocation to fix reference issue
-
   return (
-    <div className="layoutContainer">
-      {/* Sidebar (Fixed on Left) */}
-      <Sidebar />
+    <div className="layout-container">
+      {/* Sidebar */}
+      <div className="sidebar-wrapper">
+        <Sidebar />
+      </div>
 
-      <div className="layoutNavbar">
-        {/* Navbar (Fixed on Top) */}
+      {/* Main Content Area */}
+      <div className="main-wrapper">
         <Navbar />
-
-        {/* Content Area */}
-        <div className="layoutMainContent">
-        <Outlet />  
+        <div className="content-wrapper">
+          <Outlet />
         </div>
       </div>
     </div>
