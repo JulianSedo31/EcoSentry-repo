@@ -1,14 +1,10 @@
+//models/Detection.js
 const mongoose = require("mongoose");
 
-const DetectionSchema = new mongoose.Schema({
-  detection: {
-    type: String,
-    required: true,
-  },
-  timestamp: {
-    type: Date,
-    default: Date.now,
-  },
+const detectionSchema = new mongoose.Schema({
+  detection: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now } // Add timestamp with default value
 });
 
-module.exports = mongoose.model("Detection", DetectionSchema);
+const Detection = mongoose.model("Detection", detectionSchema);
+module.exports = Detection;
