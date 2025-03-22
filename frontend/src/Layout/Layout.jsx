@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
-import Sidebar from "../navigation/Sidebar";
-import Navbar from "../navigation/Navbar";
+import Sidebar from "../Navigation/Sidebar";
+import Navbar from "../Navigation/Navbar";
 import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap
 import "./style.css"; // Make sure to import the styles
 

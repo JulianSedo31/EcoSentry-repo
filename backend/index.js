@@ -1,10 +1,12 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
-// Import database connection
 const connectDB = require("./config/db");
-// Import Login Routes
+
+// Import Routes
 const authRoutes = require("./routes/auth");
+const detectionRoutes = require("./routes/detectionRoutes"); // Import new route
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,8 +23,9 @@ app.get("/", (req, res) => {
   res.send("Backend is running...");
 });
 
-// Login Route
+// Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/detection", detectionRoutes); // Add detection route
 
 // Start Server
 app.listen(PORT, () => {

@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // PAGES
 import Login from "./login/Login";
-import Layout from "./layout/Layout";
-import Dashboard from "./dashboard/Dashboard";
-import Reports from "./reports/Reports";
+import Layout from "./Layout/Layout";
+import Dashboard from "./Dashboard/Dashboard";
+import Reports from "./Reports/Reports";
 import PrivateRoute from "/PrivateRoute";
 
 function App() {
