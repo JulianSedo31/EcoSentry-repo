@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Detection API</title>
+</head>
+<body>
+    <h2>Test Detection API</h2>
+    <form id="detectionForm">
+        <input type="text" id="detection" placeholder="Enter detection message" required>
+        <button type="submit">Submit Detection</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('detectionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const detection = document.getElementById('detection').value;
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/detections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ detection })
+                });
+                
+                const data = await response.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html> 
