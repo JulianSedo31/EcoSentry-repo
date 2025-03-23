@@ -52,6 +52,9 @@ function Reports() {
         }
         const data = await response.json();
         
+        // Debug log to see the raw data structure
+        console.log('Raw detection data structure:', JSON.stringify(data, null, 2));
+        
         // Check for new detections
         if (data.length > 0) {
           const newestDetection = data[0];
@@ -202,7 +205,30 @@ function Reports() {
       headerName: "Timestamp", 
       width: 200,
       valueFormatter: (params) => {
-        return new Date(params.value).toLocaleString();
+        try {
+          if (!params.value) {
+            return 'Invalid Date';
+          }
+
+          // Parse the UTC timestamp
+          const date = new Date(params.value);
+          if (isNaN(date.getTime())) {
+            return 'Invalid Date';
+          }
+
+          // Format the date and time using UTC methods
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          const hours = String(date.getUTCHours()).padStart(2, '0');
+          const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+          const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+          
+          return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        } catch (error) {
+          console.error('Error formatting date:', error, 'Value:', params.value);
+          return 'Invalid Date';
+        }
       }
     },
     { field: "detection", headerName: "Detection", width: 200 },
