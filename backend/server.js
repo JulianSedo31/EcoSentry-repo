@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const detectionRoutes = require('./routes/detectionRoutes');
-
+const authRoutes = require("./routes/auth")
 const app = express();
 
 // Middleware
@@ -18,6 +18,9 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/detections', detectionRoutes);
+
+// ✅ ADD THIS: Authentication routes
+app.use("/api/auth", authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
