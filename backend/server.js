@@ -2,9 +2,24 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const http = require('http'); // Import HTTP module
+const { Server } = require('socket.io'); // Import Socket.IO
 const detectionRoutes = require('./routes/detectionRoutes');
-const authRoutes = require("./routes/auth")
+const authRoutes = require("./routes/auth");
+const Detection = require('./models/Detection'); // Import Detection Model
+
 const app = express();
+const server = http.createServer(app); // Create HTTP server
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow any frontend to connect
+    methods: ["GET", "POST"],
+  },
+});
+
+const emitChainsawDetection = (data) => {
+  io.emit("chainsawDetected", data);
+};
 
 // Middleware
 app.use(cors());
@@ -18,8 +33,6 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/detections', detectionRoutes);
-
-// ✅ ADD THIS: Authentication routes
 app.use("/api/auth", authRoutes);
 
 // Error handling middleware
@@ -35,12 +48,12 @@ console.log('🔑 Using URI:', process.env.MONGO_URI ? 'URI is set' : 'No URI fo
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000 // Timeout after 5s instead of 30s
+  serverSelectionTimeoutMS: 5000 
 })
 .then(() => {
   console.log('✅ Connected to MongoDB Atlas');
+
   // Add a test detection if none exist
-  const Detection = require('./models/Detection');
   Detection.countDocuments().then(count => {
     if (count === 0) {
       console.log('📝 Adding test detection...');
@@ -58,17 +71,47 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .catch(err => {
   console.error('❌ MongoDB connection error:', err);
-  console.error('Error details:', {
-    name: err.name,
-    message: err.message,
-    code: err.code
-  });
   process.exit(1);
+});
+
+// Handle WebSocket connections
+io.on("connection", (socket) => {
+  console.log("⚡ New client connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("🔌 Client disconnected:", socket.id);
+  });
+
+  socket.on("error", (err) => {
+    console.error("❌ WebSocket error:", err);
+  });
+});
+
+// Modify detection route to emit real-time events
+app.post("/api/detections", async (req, res) => {
+  try {
+    const { detection } = req.body;
+    if (!detection) return res.status(400).json({ error: "Detection data required" });
+
+    const detectionData = {
+      detection,
+      timestamp: new Date(),
+    };
+
+    await Detection.create(detectionData);
+
+    // Emit detection alert to all clients
+    io.emit("chainsawDetected", detectionData);
+
+    res.json({ message: "Detection stored and emitted in real-time", status: "success" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📡 Detections API available at http://localhost:${PORT}/api/detections`);
-}); 
+});

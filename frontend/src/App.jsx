@@ -5,7 +5,7 @@ import Layout from "./Layout/Layout";
 import Dashboard from "./Dashboard/Dashboard";
 import Reports from "./Reports/Reports";
 import PrivateRoute from "/PrivateRoute";
-
+import RealTimeMonitoring from "./real-time_monitoring/RealTimeMonitoring"; // Ensure correct path
 function App() {
   return (
     <BrowserRouter>
@@ -27,6 +27,7 @@ function App() {
           <Route path="/app" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="real-time" element={<RealTimeMonitoring />} />
           </Route>
         </Route>
 

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-//SIDEBAR
+// SIDEBAR
 import { Sidebar, Menu, MenuItem, sidebarClasses } from "react-pro-sidebar";
 // ICONS
 import { BiSolidDashboard } from "react-icons/bi";
 import { GoHistory } from "react-icons/go";
 import { TbLogout2 } from "react-icons/tb";
+import { MdOutlineMonitor } from "react-icons/md"; // Real-Time Monitoring Icon
 // IMG
 import Logo from "../assets/EcoSentryLogo.png";
 // STYLE
@@ -77,6 +78,13 @@ function CustomSidebar() {
             className={`menu-item ${isActive("/reports") ? "active" : ""}`}
           >
             Reports
+          </MenuItem>
+          <MenuItem
+            icon={<MdOutlineMonitor size={30} />}
+            onClick={() => handleNavigation("/app/real-time")}
+            className={`menu-item ${isActive("/real-time") ? "active" : ""}`}
+          >
+            Real-Time Monitoring
           </MenuItem>
           <MenuItem
             icon={<TbLogout2 size={30} />}
