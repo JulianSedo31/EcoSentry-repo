@@ -81,7 +81,7 @@ function CustomSidebar() {
           </MenuItem>
           <MenuItem
             icon={<MdOutlineMonitor size={30} />}
-            onClick={() => handleNavigation("/app/real-time")}
+            onClick={() => handleNavigation("/real-time")}
             className={`menu-item ${isActive("/real-time") ? "active" : ""}`}
           >
             Real-Time Monitoring
