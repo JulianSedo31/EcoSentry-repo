@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Box, TextField, Button, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Box, TextField, Button, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Switch, FormControlLabel } from "@mui/material";
 import {
   Search as SearchIcon,
   FileDownload as FileDownloadIcon,
   PictureAsPdf as PdfIcon,
   Delete as DeleteIcon,
+  Notifications as NotificationsIcon,
 } from "@mui/icons-material";
 import DetectionAlert from "../components/DetectionAlert";
 import "./style.css";
@@ -19,12 +20,36 @@ function Reports() {
   const [latestDetection, setLatestDetection] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detectionToDelete, setDetectionToDelete] = useState(null);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch notification settings
+  useEffect(() => {
+    const fetchNotificationSettings = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/notification-settings');
+        if (!response.ok) {
+          throw new Error('Failed to fetch notification settings');
+        }
+        const settings = await response.json();
+        setAlertsEnabled(settings.isEnabled);
+      } catch (error) {
+        console.error('Error fetching notification settings:', error);
+        setError('Failed to load notification settings');
+      }
+    };
+
+    fetchNotificationSettings();
+  }, []);
 
   // Fetch detections from the backend
   useEffect(() => {
     const fetchDetections = async () => {
       try {
         const response = await fetch('http://localhost:5000/api/detection');
+        if (!response.ok) {
+          throw new Error('Failed to fetch detections');
+        }
         const data = await response.json();
         
         // Check for new detections
@@ -34,14 +59,19 @@ function Reports() {
           // If this is the first load or if we have a new detection
           if (!latestDetection || newestDetection._id !== latestDetection._id) {
             setLatestDetection(newestDetection);
-            setAlertOpen(true);
+            // Only show alert if alerts are enabled
+            if (alertsEnabled) {
+              setAlertOpen(true);
+            }
           }
         }
         
         setDetections(data);
         setFilteredData(data);
+        setError(null);
       } catch (error) {
         console.error('Error fetching detections:', error);
+        setError('Failed to load detections');
       } finally {
         setLoading(false);
       }
@@ -51,11 +81,40 @@ function Reports() {
     // Set up polling every 5 seconds to check for new detections
     const interval = setInterval(fetchDetections, 5000);
     return () => clearInterval(interval);
-  }, [latestDetection]);
+  }, [latestDetection, alertsEnabled]);
 
   // Handle alert close
   const handleAlertClose = () => {
     setAlertOpen(false);
+  };
+
+  // Handle alert toggle
+  const handleAlertToggle = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/notification-settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isEnabled: !alertsEnabled }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update notification settings');
+      }
+
+      const settings = await response.json();
+      setAlertsEnabled(settings.isEnabled);
+
+      if (!settings.isEnabled) {
+        setAlertOpen(false);
+      } else if (latestDetection) {
+        setAlertOpen(true);
+      }
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      alert('Failed to update notification settings');
+    }
   };
 
   // Handle delete click
@@ -169,6 +228,21 @@ function Reports() {
       <div className="reports-header">
         <h1>Detection Reports</h1>
         <div className="actions-container">
+          <FormControlLabel
+            control={
+              <Switch
+                checked={alertsEnabled}
+                onChange={handleAlertToggle}
+                color="primary"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <NotificationsIcon />
+                {alertsEnabled ? "Alerts On" : "Alerts Off"}
+              </Box>
+            }
+          />
           <TextField
             variant="outlined"
             placeholder="Search detections..."
@@ -216,9 +290,9 @@ function Reports() {
       </Box>
 
       <DetectionAlert
-        open={alertOpen}
-        message={latestDetection?.detection || ""}
-        onClose={handleAlertClose}
+        open={alertOpen && alertsEnabled}
+        message={latestDetection ? `Chainsaw detected at ${latestDetection.location}` : ''}
+        onClose={() => setAlertOpen(false)}
       />
 
       {/* Delete Confirmation Dialog */}

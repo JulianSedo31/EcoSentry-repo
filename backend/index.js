@@ -7,7 +7,8 @@ const connectDB = require("./config/db");
 
 // Import Routes
 const authRoutes = require("./routes/auth");
-const detectionRoutes = require("./routes/detectionRoutes"); // Import new route
+const detectionRoutes = require("./routes/detectionRoutes");
+const notificationSettingsRoutes = require("./routes/notificationSettingsRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,7 +27,8 @@ app.get("/", (req, res) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/detection", detectionRoutes); // Add detection route
+app.use("/api/detection", detectionRoutes);
+app.use("/api/notification-settings", notificationSettingsRoutes);
 
 // Start Server
 app.listen(PORT, () => {

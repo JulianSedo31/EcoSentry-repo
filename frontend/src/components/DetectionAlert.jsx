@@ -1,54 +1,49 @@
-import React from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from '@mui/material';
-import WarningIcon from '@mui/icons-material/Warning';
+import React from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Box,
+} from "@mui/material";
+import WarningIcon from "@mui/icons-material/Warning";
+import { Fade } from "@mui/material";
 
-const DetectionAlert = ({ open, message, onClose }) => {
+function DetectionAlert({ open, message, onClose }) {
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: '#fff3e0',
-          borderRadius: 2,
-          border: '2px solid #ff9800'
-        }
-      }}
+      TransitionComponent={Fade}
+      TransitionProps={{ timeout: 500 }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <WarningIcon sx={{ color: '#ff9800', fontSize: 30 }} />
-        <Typography variant="h6" sx={{ color: '#e65100' }}>
-          Chainsaw Detection Alert!
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <WarningIcon sx={{ color: "#e65100" }} />
+        <Typography variant="h6" sx={{ color: "#e65100" }}>
+          Chainsaw Detection Alert
         </Typography>
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ py: 2 }}>
-          <Typography variant="body1" sx={{ fontSize: '1.1rem', color: '#333' }}>
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="body1" sx={{ mb: 2 }}>
             {message}
           </Typography>
-          <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#666' }}>
+          <Typography variant="body2" color="text.secondary">
             Time: {new Date().toLocaleString()}
           </Typography>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button 
-          onClick={onClose} 
-          variant="contained" 
-          sx={{ 
-            bgcolor: '#ff9800',
-            '&:hover': {
-              bgcolor: '#f57c00'
-            }
-          }}
-        >
+      <DialogActions sx={{ justifyContent: "flex-end", px: 3, pb: 2 }}>
+        <Button onClick={onClose} variant="contained" color="primary">
           Acknowledge
         </Button>
       </DialogActions>
     </Dialog>
   );
-};
+}
 
 export default DetectionAlert;
