@@ -1,27 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Box, TextField, Button, InputAdornment } from "@mui/material";
+import { Box, TextField, Button, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import {
   Search as SearchIcon,
   FileDownload as FileDownloadIcon,
   PictureAsPdf as PdfIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import DetectionAlert from "../components/DetectionAlert";
 import "./style.css";
-
-// Column definitions
-const columns = [
-  { field: "_id", headerName: "ID", width: 220 },
-  { 
-    field: "timestamp", 
-    headerName: "Timestamp", 
-    width: 200,
-    valueFormatter: (params) => {
-      return new Date(params.value).toLocaleString();
-    }
-  },
-  { field: "detection", headerName: "Detection", width: 200 },
-];
 
 function Reports() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,6 +17,8 @@ function Reports() {
   const [loading, setLoading] = useState(true);
   const [alertOpen, setAlertOpen] = useState(false);
   const [latestDetection, setLatestDetection] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [detectionToDelete, setDetectionToDelete] = useState(null);
 
   // Fetch detections from the backend
   useEffect(() => {
@@ -69,6 +58,49 @@ function Reports() {
     setAlertOpen(false);
   };
 
+  // Handle delete click
+  const handleDeleteClick = (id) => {
+    setDetectionToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/detection/${detectionToDelete}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete detection');
+      }
+
+      // Remove the deleted detection from the state
+      setDetections(prevDetections => 
+        prevDetections.filter(detection => detection._id !== detectionToDelete)
+      );
+      setFilteredData(prevFilteredData => 
+        prevFilteredData.filter(detection => detection._id !== detectionToDelete)
+      );
+      
+      // Show success message
+      alert('Detection deleted successfully');
+    } catch (error) {
+      console.error('Error deleting detection:', error);
+      alert('Failed to delete detection: ' + error.message);
+    } finally {
+      setDeleteDialogOpen(false);
+      setDetectionToDelete(null);
+    }
+  };
+
+  // Handle delete cancel
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setDetectionToDelete(null);
+  };
+
   // Handle search
   const handleSearch = (event) => {
     const term = event.target.value.toLowerCase();
@@ -102,6 +134,35 @@ function Reports() {
     // PDF export functionality would go here
     console.log("Export to PDF");
   };
+
+  // Column definitions
+  const columns = [
+    { field: "_id", headerName: "ID", width: 220 },
+    { 
+      field: "timestamp", 
+      headerName: "Timestamp", 
+      width: 200,
+      valueFormatter: (params) => {
+        return new Date(params.value).toLocaleString();
+      }
+    },
+    { field: "detection", headerName: "Detection", width: 200 },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 100,
+      sortable: false,
+      renderCell: (params) => (
+        <IconButton
+          onClick={() => handleDeleteClick(params.row._id)}
+          color="error"
+          size="small"
+        >
+          <DeleteIcon />
+        </IconButton>
+      ),
+    },
+  ];
 
   return (
     <div className="reports-container">
@@ -159,6 +220,20 @@ function Reports() {
         message={latestDetection?.detection || ""}
         onClose={handleAlertClose}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this detection record?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

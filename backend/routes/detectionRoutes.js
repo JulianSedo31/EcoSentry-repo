@@ -35,4 +35,22 @@ router.post("/", async (req, res) => {
   }
 });
 
+// DELETE - Delete a detection
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedDetection = await Detection.findByIdAndDelete(id);
+    
+    if (!deletedDetection) {
+      return res.status(404).json({ error: "Detection not found" });
+    }
+
+    console.log("✅ Detection deleted:", deletedDetection);
+    res.json({ message: "Detection deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting detection:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 module.exports = router;
