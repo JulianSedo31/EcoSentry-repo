@@ -4,8 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Sidebar, Menu, MenuItem, sidebarClasses } from "react-pro-sidebar";
 // ICONS
 import { BiSolidDashboard } from "react-icons/bi";
-import { GoHistory } from "react-icons/go";
 import { TbLogout2 } from "react-icons/tb";
+import { BsRadar } from "react-icons/bs";
 // IMG
 import Logo from "../assets/EcoSentryLogo.png";
 // STYLE
@@ -72,11 +72,11 @@ function CustomSidebar() {
             Dashboard
           </MenuItem>
           <MenuItem
-            icon={<GoHistory size={25} />}
+            icon={<BsRadar size={25} />}
             onClick={() => handleNavigation("/reports")}
             className={`menu-item ${isActive("/reports") ? "active" : ""}`}
           >
-            Reports
+            Detections
           </MenuItem>
           <MenuItem
             icon={<TbLogout2 size={30} />}
