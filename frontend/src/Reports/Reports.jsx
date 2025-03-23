@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Box, TextField, Button, InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import {
+  Box,
+  TextField,
+  Button,
+  InputAdornment,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
 import {
   Search as SearchIcon,
   FileDownload as FileDownloadIcon,
@@ -24,24 +34,39 @@ function Reports() {
   useEffect(() => {
     const fetchDetections = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/detection');
+        const response = await fetch("http://localhost:5000/api/detection");
         const data = await response.json();
-        
+
+        // Add more detailed console logging
+        console.log("Received detections:", data);
+        if (data.length > 0) {
+          console.log("Sample detection structure:", {
+            id: data[0]._id,
+            timestamp: data[0].timestamp,
+            detection: data[0].detection,
+            formattedDate: new Date(data[0].timestamp).toLocaleString("en-US", {
+              dateStyle: "medium",
+              timeStyle: "medium",
+            }),
+          });
+        }
+
         // Check for new detections
         if (data.length > 0) {
           const newestDetection = data[0];
-          
+          console.log("Newest detection:", newestDetection);
+
           // If this is the first load or if we have a new detection
           if (!latestDetection || newestDetection._id !== latestDetection._id) {
             setLatestDetection(newestDetection);
             setAlertOpen(true);
           }
         }
-        
+
         setDetections(data);
         setFilteredData(data);
       } catch (error) {
-        console.error('Error fetching detections:', error);
+        console.error("Error fetching detections:", error);
       } finally {
         setLoading(false);
       }
@@ -67,28 +92,35 @@ function Reports() {
   // Handle delete confirmation
   const handleDeleteConfirm = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/detection/${detectionToDelete}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/detection/${detectionToDelete}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete detection');
+        throw new Error(errorData.error || "Failed to delete detection");
       }
 
       // Remove the deleted detection from the state
-      setDetections(prevDetections => 
-        prevDetections.filter(detection => detection._id !== detectionToDelete)
+      setDetections((prevDetections) =>
+        prevDetections.filter(
+          (detection) => detection._id !== detectionToDelete
+        )
       );
-      setFilteredData(prevFilteredData => 
-        prevFilteredData.filter(detection => detection._id !== detectionToDelete)
+      setFilteredData((prevFilteredData) =>
+        prevFilteredData.filter(
+          (detection) => detection._id !== detectionToDelete
+        )
       );
-      
+
       // Show success message
-      alert('Detection deleted successfully');
+      alert("Detection deleted successfully");
     } catch (error) {
-      console.error('Error deleting detection:', error);
-      alert('Failed to delete detection: ' + error.message);
+      console.error("Error deleting detection:", error);
+      alert("Failed to delete detection: " + error.message);
     } finally {
       setDeleteDialogOpen(false);
       setDetectionToDelete(null);
@@ -110,7 +142,10 @@ function Reports() {
       (detection) =>
         detection._id.toLowerCase().includes(term) ||
         detection.detection.toLowerCase().includes(term) ||
-        new Date(detection.timestamp).toLocaleString().toLowerCase().includes(term)
+        new Date(detection.timestamp)
+          .toLocaleString()
+          .toLowerCase()
+          .includes(term)
     );
     setFilteredData(filtered);
   };
@@ -119,7 +154,10 @@ function Reports() {
   const exportToCSV = () => {
     const headers = ["ID,Timestamp,Detection"];
     const data = filteredData.map(
-      (row) => `${row._id},${new Date(row.timestamp).toLocaleString()},"${row.detection}"`
+      (row) =>
+        `${row._id},${new Date(row.timestamp).toLocaleString()},"${
+          row.detection
+        }"`
     );
     const csvContent = [...headers, ...data].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -138,13 +176,16 @@ function Reports() {
   // Column definitions
   const columns = [
     { field: "_id", headerName: "ID", width: 220 },
-    { 
-      field: "timestamp", 
-      headerName: "Timestamp", 
+    {
+      field: "timestamp",
+      headerName: "Timestamp",
       width: 200,
-      valueFormatter: (params) => {
-        return new Date(params.value).toLocaleString();
-      }
+      renderCell: (params) => {
+        return new Date(params.row.timestamp).toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "medium",
+        });
+      },
     },
     { field: "detection", headerName: "Detection", width: 200 },
     {
@@ -229,7 +270,11 @@ function Reports() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+          >
             Delete
           </Button>
         </DialogActions>
