@@ -1,6 +1,8 @@
 // routes/detectionRoutes.js
 const express = require("express");
 const Detection = require("../models/Detection"); // Import model
+const { GridFSBucket } = require("mongodb");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -49,6 +51,35 @@ router.delete("/:id", async (req, res) => {
     res.json({ message: "Detection deleted successfully" });
   } catch (error) {
     console.error("❌ Error deleting detection:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET - Retrieve audio file for a specific detection
+router.get("/audio/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const detection = await Detection.findById(id);
+    
+    if (!detection || !detection.file_id) {
+      return res.status(404).json({ error: "Audio file not found" });
+    }
+
+    const bucket = new GridFSBucket(mongoose.connection.db, {
+      bucketName: 'fs'
+    });
+
+    const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(detection.file_id));
+    
+    res.setHeader('Content-Type', 'audio/wav');
+    downloadStream.pipe(res);
+
+    downloadStream.on('error', (error) => {
+      console.error("Error streaming audio file:", error);
+      res.status(500).json({ error: "Error streaming audio file" });
+    });
+  } catch (error) {
+    console.error("Error retrieving audio file:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

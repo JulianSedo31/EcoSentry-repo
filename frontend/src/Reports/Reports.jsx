@@ -16,6 +16,7 @@ import {
   FileDownload as FileDownloadIcon,
   PictureAsPdf as PdfIcon,
   Delete as DeleteIcon,
+  PlayArrow as PlayIcon,
 } from "@mui/icons-material";
 import DetectionAlert from "../components/DetectionAlert";
 import "./style.css";
@@ -173,6 +174,24 @@ function Reports() {
     console.log("Export to PDF");
   };
 
+  // Add this function to handle playing audio
+  const handlePlayAudio = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/detection/audio/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch audio');
+      }
+      
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.play();
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      alert('Failed to play audio file');
+    }
+  };
+
   // Column definitions
   const columns = [
     { field: "_id", headerName: "ID", width: 220 },
@@ -191,16 +210,27 @@ function Reports() {
     {
       field: "actions",
       headerName: "Actions",
-      width: 100,
+      width: 150,
       sortable: false,
       renderCell: (params) => (
-        <IconButton
-          onClick={() => handleDeleteClick(params.row._id)}
-          color="error"
-          size="small"
-        >
-          <DeleteIcon />
-        </IconButton>
+        <div>
+          <IconButton
+            onClick={() => handlePlayAudio(params.row._id)}
+            color="primary"
+            size="small"
+            disabled={!params.row.file_id}
+            title={params.row.file_id ? "Play Audio" : "No Audio Available"}
+          >
+            <PlayIcon />
+          </IconButton>
+          <IconButton
+            onClick={() => handleDeleteClick(params.row._id)}
+            color="error"
+            size="small"
+          >
+            <DeleteIcon />
+          </IconButton>
+        </div>
       ),
     },
   ];
