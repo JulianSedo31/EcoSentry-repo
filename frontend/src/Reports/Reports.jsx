@@ -57,10 +57,13 @@ function Reports() {
           const newestDetection = data[0];
           console.log("Newest detection:", newestDetection);
 
-          // If this is the first load or if we have a new detection
-          if (!latestDetection || newestDetection._id !== latestDetection._id) {
+          // Only show alert if we have a previous detection and the new one is different
+          if (latestDetection && newestDetection._id !== latestDetection._id) {
             setLatestDetection(newestDetection);
             setAlertOpen(true);
+          } else if (!latestDetection) {
+            // Set the initial detection without showing alert
+            setLatestDetection(newestDetection);
           }
         }
 
