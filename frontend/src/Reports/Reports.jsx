@@ -514,7 +514,7 @@ function Reports() {
     {
       field: "actions",
       headerName: "Actions",
-      width: 180,
+      width: 200,
       sortable: false,
       headerAlign: "center",
       renderCell: (params) => (
@@ -562,7 +562,7 @@ function Reports() {
 
   return (
     <div className="reports-container">
-      {/* Left side - Charts */}
+      {/* Charts Row */}
       <div className="charts-container">
         {/* BAR CHART */}
         <div className="chart-box">
@@ -571,6 +571,7 @@ function Reports() {
             <Bar data={prepareChartData()} options={chartOptions} />
           </div>
         </div>
+        {/* LINE CHART */}
         <div className="chart-box">
           <h3 className="chart-title">Yearly Detection Trends Comparison</h3>
           <div style={{ position: "relative", height: "90%", width: "100%" }}>
@@ -579,7 +580,7 @@ function Reports() {
         </div>
       </div>
 
-      {/* Right side - Controls and Table */}
+      {/* Controls and Table Row */}
       <div className="controls-table-container">
         <div className="controls-section">
           <div className="date-filters">
@@ -649,11 +650,11 @@ function Reports() {
             getRowId={(row) => row._id}
             sx={{
               "& .MuiDataGrid-columnHeader": {
-                backgroundColor: "#27323a ",
+                backgroundColor: "white",
               },
               "& .MuiDataGrid-columnHeaderTitle": {
                 fontWeight: "bold",
-                color: "white",
+                color: "black",
               },
             }}
           />
