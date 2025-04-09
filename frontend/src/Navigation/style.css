@@ -91,7 +91,7 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   min-width: 320px;
-  max-width: 400px;
+  max-width: 500px;
   width: 90%;
   margin-left: 2rem;
 }
