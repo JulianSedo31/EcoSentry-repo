@@ -44,7 +44,6 @@
   height: 100vh; /* Make sure it allows full height */
 }
 
-/* 🔹 Page Content (Where pages load) */
 .page-content {
   width: 100%;
   max-width: 1200px;
@@ -52,7 +51,6 @@
   padding: 20px;
 }
 
-/* 🔹 Responsive Adjustments */
 @media (max-width: 768px) {
   .main-content {
     padding-left: 0; /* No extra padding on smaller screens */

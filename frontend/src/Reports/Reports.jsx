@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from "react";
+// DATA TABLE
 import { DataGrid } from "@mui/x-data-grid";
+// MUI LIBRARY
 import {
   Box,
-  TextField,
   Button,
-  InputAdornment,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
+// ICONS
 import {
   Search as SearchIcon,
   FileDownload as FileDownloadIcon,
@@ -18,8 +23,35 @@ import {
   Delete as DeleteIcon,
   PlayArrow as PlayIcon,
 } from "@mui/icons-material";
+// COMPONENTS
 import DetectionAlert from "../components/DetectionAlert";
+// STYLE
 import "./style.css";
+// CHARTS
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar, Line } from "react-chartjs-2";
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 function Reports() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,6 +62,27 @@ function Reports() {
   const [latestDetection, setLatestDetection] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detectionToDelete, setDetectionToDelete] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Get unique years from detections
+  const getUniqueYears = () => {
+    const years = new Set(
+      detections.map((d) => new Date(d.timestamp).getFullYear())
+    );
+    return Array.from(years).sort((a, b) => b - a);
+  };
+
+  // Filter detections by month and year
+  useEffect(() => {
+    const filtered = detections.filter((detection) => {
+      const date = new Date(detection.timestamp);
+      return (
+        date.getMonth() === selectedMonth && date.getFullYear() === selectedYear
+      );
+    });
+    setFilteredData(filtered);
+  }, [detections, selectedMonth, selectedYear]);
 
   // Fetch detections from the backend
   useEffect(() => {
@@ -77,6 +130,7 @@ function Reports() {
     };
 
     fetchDetections();
+
     // Set up polling every 5 seconds to check for new detections
     const interval = setInterval(fetchDetections, 5000);
     return () => clearInterval(interval);
@@ -137,22 +191,22 @@ function Reports() {
     setDetectionToDelete(null);
   };
 
-  // Handle search
-  const handleSearch = (event) => {
-    const term = event.target.value.toLowerCase();
-    setSearchTerm(term);
+  // Handle search (remove sa nako kay murag dili na needed )
+  // const handleSearch = (event) => {
+  //   const term = event.target.value.toLowerCase();
+  //   setSearchTerm(term);
 
-    const filtered = detections.filter(
-      (detection) =>
-        detection._id.toLowerCase().includes(term) ||
-        detection.detection.toLowerCase().includes(term) ||
-        new Date(detection.timestamp)
-          .toLocaleString()
-          .toLowerCase()
-          .includes(term)
-    );
-    setFilteredData(filtered);
-  };
+  //   const filtered = detections.filter(
+  //     (detection) =>
+  //       detection._id.toLowerCase().includes(term) ||
+  //       detection.detection.toLowerCase().includes(term) ||
+  //       new Date(detection.timestamp)
+  //         .toLocaleString()
+  //         .toLowerCase()
+  //         .includes(term)
+  //   );
+  //   setFilteredData(filtered);
+  // };
 
   // Export functions
   const exportToCSV = () => {
@@ -177,31 +231,258 @@ function Reports() {
     console.log("Export to PDF");
   };
 
-  // Add this function to handle playing audio
+  //  Function to handle playing audio
   const handlePlayAudio = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/detection/audio/${id}`);
+      const response = await fetch(
+        `http://localhost:5000/api/detection/audio/${id}`
+      );
       if (!response.ok) {
-        throw new Error('Failed to fetch audio');
+        throw new Error("Failed to fetch audio");
       }
-      
+
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       audio.play();
     } catch (error) {
-      console.error('Error playing audio:', error);
-      alert('Failed to play audio file');
+      console.error("Error playing audio:", error);
+      alert("Failed to play audio file");
     }
+  };
+
+  // Handle month change
+  const handleMonthChange = (event) => {
+    setSelectedMonth(event.target.value);
+  };
+
+  // Handle year change
+  const handleYearChange = (event) => {
+    setSelectedYear(event.target.value);
+  };
+
+  // Inside your Reports component, add this chart options
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 2000, // Animation duration in milliseconds
+      easing: "easeInOutQuart", // Smooth easing function
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: "rgba(255, 255, 255, 0.1)",
+        },
+        ticks: {
+          color: "rgba(255, 255, 255, 0.7)",
+        },
+      },
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: "rgba(255, 255, 255, 0.7)",
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: "rgba(20, 30, 45, 0.95)",
+        titleColor: "white",
+        bodyColor: "white",
+        padding: 12,
+        borderColor: "rgba(255, 255, 255, 0.1)",
+        borderWidth: 1,
+      },
+    },
+  };
+
+  // Modify your data preparation function
+  const prepareChartData = () => {
+    const monthlyData = Array(12).fill(0);
+
+    detections.forEach((detection) => {
+      const date = new Date(detection.timestamp);
+      const monthIndex = date.getMonth();
+      if (detection.detection.includes("Chainsaw")) {
+        monthlyData[monthIndex]++;
+      }
+    });
+
+    return {
+      labels: [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ],
+      datasets: [
+        {
+          data: monthlyData,
+          backgroundColor: "rgba(117, 207, 184, 0.8)",
+          borderColor: "#75CFB8",
+          borderWidth: 1,
+          borderRadius: 4,
+          hoverBackgroundColor: "#75CFB8",
+        },
+      ],
+    };
+  };
+
+  //Chart data to show monthly and yearly trends
+  const prepareLineChartData = () => {
+    // Create an object to store yearly totals
+    const yearlyData = {};
+
+    detections.forEach((detection) => {
+      const date = new Date(detection.timestamp);
+      const year = date.getFullYear();
+
+      // Initialize the year if it doesn't exist
+      if (!yearlyData[year]) {
+        yearlyData[year] = {
+          total: 0,
+          months: Array(12).fill(0),
+        };
+      }
+
+      if (detection.detection.includes("Chainsaw")) {
+        yearlyData[year].total++;
+        yearlyData[year].months[date.getMonth()]++;
+      }
+    });
+
+    // Get all years and sort them
+    const years = Object.keys(yearlyData).sort();
+
+    // Create datasets for each year
+    const datasets = years.map((year) => ({
+      label: year,
+      data: yearlyData[year].months,
+      borderColor: getYearColor(year),
+      backgroundColor: `${getYearColor(year)}20`, // 20 is hex for 12% opacity
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: getYearColor(year),
+      pointBorderColor: "#fff",
+      pointHoverBackgroundColor: "#fff",
+      pointHoverBorderColor: getYearColor(year),
+      pointRadius: 4,
+      pointHoverRadius: 6,
+    }));
+
+    return {
+      labels: [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ],
+      datasets,
+    };
+  };
+
+  // Generate different colors for each year
+  const getYearColor = (year) => {
+    const colors = {
+      2024: "#75CFB8", // Keep the existing color for current year
+      2023: "#64B5F6", // Blue
+      2022: "#81C784", // Green
+      2021: "#BA68C8", // Purple
+      // Add more colors as needed
+    };
+    return colors[year] || "#75CFB8"; // Default to original color if year not found
+  };
+
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 2000,
+      easing: "easeInOutQuart",
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: "rgba(255, 255, 255, 0.1)",
+        },
+        ticks: {
+          color: "rgba(255, 255, 255, 0.7)",
+        },
+      },
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: "rgba(255, 255, 255, 0.7)",
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        display: true, // Show legend for multiple years
+        position: "top",
+        labels: {
+          color: "rgba(255, 255, 255, 0.7)",
+          usePointStyle: true,
+          pointStyle: "circle",
+          padding: 20,
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(20, 30, 45, 0.95)",
+        titleColor: "white",
+        bodyColor: "white",
+        padding: 12,
+        borderColor: "rgba(255, 255, 255, 0.1)",
+        borderWidth: 1,
+        callbacks: {
+          label: function (context) {
+            return `${context.dataset.label}: ${context.parsed.y} detections`;
+          },
+        },
+      },
+    },
   };
 
   // Column definitions
   const columns = [
-    { field: "_id", headerName: "ID", width: 220 },
+    // {
+    //   field: "_id",
+    //   headerName: "ID",
+    //   width: 220,
+    //   sortable: false,
+    //   headerAlign: "center",
+    // },
     {
       field: "timestamp",
       headerName: "Timestamp",
       width: 200,
+      headerAlign: "center",
       renderCell: (params) => {
         return new Date(params.row.timestamp).toLocaleString("en-US", {
           dateStyle: "medium",
@@ -209,20 +490,54 @@ function Reports() {
         });
       },
     },
-    { field: "detection", headerName: "Detection", width: 200 },
+    {
+      field: "detection",
+      headerName: "Detection",
+      width: 200,
+      sortable: false,
+      headerAlign: "center",
+      align: "center",
+      renderCell: (params) => (
+        <div
+          style={{
+            color: params.row.detection.includes("Chainsaw")
+              ? "black"
+              : "#ff9800",
+            fontWeight: "500",
+            fontSize: "0.875rem",
+          }}
+        >
+          {params.row.detection}
+        </div>
+      ),
+    },
     {
       field: "actions",
       headerName: "Actions",
-      width: 150,
+      width: 180,
       sortable: false,
+      headerAlign: "center",
       renderCell: (params) => (
-        <div>
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            gap: "8px",
+          }}
+        >
           <IconButton
             onClick={() => handlePlayAudio(params.row._id)}
             color="primary"
             size="small"
             disabled={!params.row.file_id}
-            title={params.row.file_id ? "Play Audio" : "No Audio Available"}
+            sx={{
+              "&:hover": {
+                backgroundColor: "rgba(25, 118, 210, 0.08)",
+                transform: "scale(1.1)",
+              },
+              transition: "all 0.2s ease-in-out",
+            }}
           >
             <PlayIcon />
           </IconButton>
@@ -230,6 +545,13 @@ function Reports() {
             onClick={() => handleDeleteClick(params.row._id)}
             color="error"
             size="small"
+            sx={{
+              "&:hover": {
+                backgroundColor: "rgba(211, 47, 47, 0.08)",
+                transform: "scale(1.1)",
+              },
+              transition: "all 0.2s ease-in-out",
+            }}
           >
             <DeleteIcon />
           </IconButton>
@@ -240,23 +562,63 @@ function Reports() {
 
   return (
     <div className="reports-container">
-      <div className="reports-header">
-        <h1>Detection Reports</h1>
-        <div className="actions-container">
-          <TextField
-            variant="outlined"
-            placeholder="Search detections..."
-            value={searchTerm}
-            onChange={handleSearch}
-            className="search-field"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
+      {/* Left side - Charts */}
+      <div className="charts-container">
+        {/* BAR CHART */}
+        <div className="chart-box">
+          <h3 className="chart-title">Chainsaw Detections per Month</h3>
+          <div style={{ position: "relative", height: "90%", width: "100%" }}>
+            <Bar data={prepareChartData()} options={chartOptions} />
+          </div>
+        </div>
+        <div className="chart-box">
+          <h3 className="chart-title">Yearly Detection Trends Comparison</h3>
+          <div style={{ position: "relative", height: "90%", width: "100%" }}>
+            <Line data={prepareLineChartData()} options={lineChartOptions} />
+          </div>
+        </div>
+      </div>
+
+      {/* Right side - Controls and Table */}
+      <div className="controls-table-container">
+        <div className="controls-section">
+          <div className="date-filters">
+            <FormControl size="small" sx={{ minWidth: 120, mr: 2 }}>
+              <InputLabel>Month</InputLabel>
+              <Select
+                value={selectedMonth}
+                label="Month"
+                onChange={handleMonthChange}
+              >
+                <MenuItem value={0}>January</MenuItem>
+                <MenuItem value={1}>February</MenuItem>
+                <MenuItem value={2}>March</MenuItem>
+                <MenuItem value={3}>April</MenuItem>
+                <MenuItem value={4}>May</MenuItem>
+                <MenuItem value={5}>June</MenuItem>
+                <MenuItem value={6}>July</MenuItem>
+                <MenuItem value={7}>August</MenuItem>
+                <MenuItem value={8}>September</MenuItem>
+                <MenuItem value={9}>October</MenuItem>
+                <MenuItem value={10}>November</MenuItem>
+                <MenuItem value={11}>December</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel>Year</InputLabel>
+              <Select
+                value={selectedYear}
+                label="Year"
+                onChange={handleYearChange}
+              >
+                {getUniqueYears().map((year) => (
+                  <MenuItem key={year} value={year}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </div>
           <Button
             variant="contained"
             startIcon={<FileDownloadIcon />}
@@ -274,20 +636,29 @@ function Reports() {
             PDF
           </Button>
         </div>
-      </div>
 
-      <Box className="table-container">
-        <DataGrid
-          rows={filteredData}
-          columns={columns}
-          pageSize={5}
-          rowsPerPageOptions={[5, 10, 20]}
-          disableSelectionOnClick
-          className="data-grid"
-          loading={loading}
-          getRowId={(row) => row._id}
-        />
-      </Box>
+        <Box className="table-container">
+          <DataGrid
+            rows={filteredData}
+            columns={columns}
+            pageSize={10}
+            disableSelectionOnClick
+            loading={loading}
+            className="data-grid"
+            disableColumnResize={true}
+            getRowId={(row) => row._id}
+            sx={{
+              "& .MuiDataGrid-columnHeader": {
+                backgroundColor: "#27323a ",
+              },
+              "& .MuiDataGrid-columnHeaderTitle": {
+                fontWeight: "bold",
+                color: "white",
+              },
+            }}
+          />
+        </Box>
+      </div>
 
       <DetectionAlert
         open={alertOpen}

@@ -82,9 +82,12 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center; /* Ensures vertical alignment */
-  background: white;
-  padding: 12px 25px;
-  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.15); /* translucent background */
+  backdrop-filter: blur(12px); /* glass blur effect */
+  -webkit-backdrop-filter: blur(12px); /* Safari support */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 5px 25px;
+  border-radius: 10px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   min-width: 320px;

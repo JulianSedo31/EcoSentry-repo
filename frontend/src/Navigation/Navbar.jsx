@@ -40,8 +40,8 @@ function Navbar() {
           <span className="status-text">{batteryLevel}%</span>
         </div>
 
-        {/* Notification Icon */}
-        <IoNotificationsOutline className="notification-icon" />
+        {/* Notification Icon //remove sa nako
+        <IoNotificationsOutline className="notification-icon" /> */}
       </div>
     </nav>
   );
