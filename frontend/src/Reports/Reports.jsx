@@ -471,17 +471,27 @@ function Reports() {
 
   // Column definitions
   const columns = [
-    // {
-    //   field: "_id",
-    //   headerName: "ID",
-    //   width: 220,
-    //   sortable: false,
-    //   headerAlign: "center",
-    // },
+    {
+      field: "device",
+      headerName: "Device",
+      flex: 1,
+      minWidth: 100,
+      headerAlign: "center",
+      align: "center",
+    },
+    {
+      field: "location",
+      headerName: "Location",
+      flex: 2,
+      minWidth: 300,
+      headerAlign: "center",
+      align: "center",
+    },
     {
       field: "timestamp",
       headerName: "Timestamp",
-      width: 200,
+      flex: 1,
+      minWidth: 250,
       headerAlign: "center",
       renderCell: (params) => {
         return new Date(params.row.timestamp).toLocaleString("en-US", {
@@ -493,7 +503,8 @@ function Reports() {
     {
       field: "detection",
       headerName: "Detection",
-      width: 200,
+      flex: 1,
+      minWidth: 250,
       sortable: false,
       headerAlign: "center",
       align: "center",
@@ -514,7 +525,8 @@ function Reports() {
     {
       field: "actions",
       headerName: "Actions",
-      width: 200,
+      flex: 1,
+      minWidth: 200,
       sortable: false,
       headerAlign: "center",
       renderCell: (params) => (
@@ -584,7 +596,7 @@ function Reports() {
       <div className="controls-table-container">
         <div className="controls-section">
           <div className="date-filters">
-            <FormControl size="small" sx={{ minWidth: 120, mr: 2 }}>
+            <FormControl sx={{ minWidth: 200, mr: 2 }}>
               <InputLabel>Month</InputLabel>
               <Select
                 value={selectedMonth}
@@ -605,7 +617,7 @@ function Reports() {
                 <MenuItem value={11}>December</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
+            <FormControl sx={{ minWidth: 200 }}>
               <InputLabel>Year</InputLabel>
               <Select
                 value={selectedYear}
@@ -638,7 +650,7 @@ function Reports() {
           </Button>
         </div>
 
-        <Box className="table-container">
+        <Box className="table-container" sx={{ width: '100%', overflow: 'hidden' }}>
           <DataGrid
             rows={filteredData}
             columns={columns}
@@ -649,10 +661,17 @@ function Reports() {
             disableColumnResize={true}
             getRowId={(row) => row._id}
             sx={{
-              "& .MuiDataGrid-columnHeader": {
+              width: '100%',
+              '& .MuiDataGrid-main': {
+                overflow: 'hidden',
+              },
+              '& .MuiDataGrid-virtualScroller': {
+                overflow: 'hidden',
+              },
+              '& .MuiDataGrid-columnHeader': {
                 backgroundColor: "white",
               },
-              "& .MuiDataGrid-columnHeaderTitle": {
+              '& .MuiDataGrid-columnHeaderTitle': {
                 fontWeight: "bold",
                 color: "black",
               },
