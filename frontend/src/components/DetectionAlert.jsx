@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -9,56 +8,58 @@ import {
   Box,
 } from "@mui/material";
 import WarningIcon from "@mui/icons-material/Warning";
+import "./style.css";
+import alarmSound from "../assets/security-alarm-80493.mp3";
 
 const DetectionAlert = ({ open, message, onClose }) => {
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      // Create and play the alert sound
+      audioRef.current = new Audio(alarmSound);
+      audioRef.current.volume = 1.0; // Set volume to 100%
+      audioRef.current.loop = true; // Make it loop
+      audioRef.current.play().catch((error) => {
+        console.error("Error playing sound:", error);
+      });
+    } else {
+      // Stop the sound when modal is closed
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    }
+
+    // Cleanup function to stop sound when component unmounts
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
+  }, [open]);
+
   return (
     <Dialog
       open={open}
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: "#fff3e0",
-          borderRadius: 2,
-          border: "2px solid #ff9800",
-        },
-      }}
+      className="alert-modal"
     >
-      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <WarningIcon sx={{ color: "#ff9800", fontSize: 30 }} />
-        <Typography variant="h6" sx={{ color: "#e65100" }}>
-          Chainsaw Detection Alert!
-        </Typography>
-      </DialogTitle>
       <DialogContent>
-        <Box sx={{ py: 2 }}>
-          <Typography
-            variant="body1"
-            sx={{ fontSize: "1.1rem", color: "#333" }}
-          >
-            {message}
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{ display: "block", mt: 1, color: "#666" }}
-          >
-            Time: {new Date().toLocaleString()}
-          </Typography>
+        <Box className="alert-icon-container">
+          <WarningIcon className="alert-icon" />
         </Box>
+        <Typography className="alert-message">{message}</Typography>
+        <Typography className="alert-time">
+          Time: {new Date().toLocaleString()}
+        </Typography>
       </DialogContent>
-      <DialogActions>
-        <Button
-          onClick={onClose}
-          variant="contained"
-          sx={{
-            bgcolor: "#ff9800",
-            "&:hover": {
-              bgcolor: "#f57c00",
-            },
-          }}
-        >
-          Acknowledge
+      <DialogActions className="alert-actions">
+        <Button onClick={onClose} className="acknowledge-button">
+          Close
         </Button>
       </DialogActions>
     </Dialog>

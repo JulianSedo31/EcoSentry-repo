@@ -58,8 +58,6 @@ function Reports() {
   const [detections, setDetections] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [alertOpen, setAlertOpen] = useState(false);
-  const [latestDetection, setLatestDetection] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detectionToDelete, setDetectionToDelete] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -90,36 +88,6 @@ function Reports() {
       try {
         const response = await fetch("http://localhost:5000/api/detection");
         const data = await response.json();
-
-        // Add more detailed console logging
-        console.log("Received detections:", data);
-        if (data.length > 0) {
-          console.log("Sample detection structure:", {
-            id: data[0]._id,
-            timestamp: data[0].timestamp,
-            detection: data[0].detection,
-            formattedDate: new Date(data[0].timestamp).toLocaleString("en-US", {
-              dateStyle: "medium",
-              timeStyle: "medium",
-            }),
-          });
-        }
-
-        // Check for new detections
-        if (data.length > 0) {
-          const newestDetection = data[0];
-          console.log("Newest detection:", newestDetection);
-
-          // Only show alert if we have a previous detection and the new one is different
-          if (latestDetection && newestDetection._id !== latestDetection._id) {
-            setLatestDetection(newestDetection);
-            setAlertOpen(true);
-          } else if (!latestDetection) {
-            // Set the initial detection without showing alert
-            setLatestDetection(newestDetection);
-          }
-        }
-
         setDetections(data);
         setFilteredData(data);
       } catch (error) {
@@ -130,16 +98,7 @@ function Reports() {
     };
 
     fetchDetections();
-
-    // Set up polling every 5 seconds to check for new detections
-    const interval = setInterval(fetchDetections, 5000);
-    return () => clearInterval(interval);
-  }, [latestDetection]);
-
-  // Handle alert close
-  const handleAlertClose = () => {
-    setAlertOpen(false);
-  };
+  }, []);
 
   // Handle delete click
   const handleDeleteClick = (id) => {
@@ -650,7 +609,10 @@ function Reports() {
           </Button>
         </div>
 
-        <Box className="table-container" sx={{ width: '100%', overflow: 'hidden' }}>
+        <Box
+          className="table-container"
+          sx={{ width: "100%", overflow: "hidden" }}
+        >
           <DataGrid
             rows={filteredData}
             columns={columns}
@@ -661,17 +623,17 @@ function Reports() {
             disableColumnResize={true}
             getRowId={(row) => row._id}
             sx={{
-              width: '100%',
-              '& .MuiDataGrid-main': {
-                overflow: 'hidden',
+              width: "100%",
+              "& .MuiDataGrid-main": {
+                overflow: "hidden",
               },
-              '& .MuiDataGrid-virtualScroller': {
-                overflow: 'hidden',
+              "& .MuiDataGrid-virtualScroller": {
+                overflow: "hidden",
               },
-              '& .MuiDataGrid-columnHeader': {
+              "& .MuiDataGrid-columnHeader": {
                 backgroundColor: "white",
               },
-              '& .MuiDataGrid-columnHeaderTitle': {
+              "& .MuiDataGrid-columnHeaderTitle": {
                 fontWeight: "bold",
                 color: "black",
               },
@@ -679,12 +641,6 @@ function Reports() {
           />
         </Box>
       </div>
-
-      <DetectionAlert
-        open={alertOpen}
-        message={latestDetection?.detection || ""}
-        onClose={handleAlertClose}
-      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
