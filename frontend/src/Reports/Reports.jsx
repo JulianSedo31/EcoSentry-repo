@@ -40,6 +40,9 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
+// PFF
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Register ChartJS components
 ChartJS.register(
@@ -168,26 +171,75 @@ function Reports() {
   // };
 
   // Export functions
-  const exportToCSV = () => {
-    const headers = ["ID,Timestamp,Detection"];
-    const data = filteredData.map(
-      (row) =>
-        `${row._id},${new Date(row.timestamp).toLocaleString()},"${
-          row.detection
-        }"`
-    );
-    const csvContent = [...headers, ...data].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "detections_report.csv";
-    link.click();
-  };
-
   const exportToPDF = () => {
-    // PDF export functionality would go here
-    console.log("Export to PDF");
+    try {
+      // Create new PDF document
+      const doc = new jsPDF();
+
+      // Add title
+      doc.setFontSize(20);
+      doc.setTextColor(40);
+      doc.text("Chainsaw Detection Report", 14, 15);
+
+      // Add date range
+      doc.setFontSize(12);
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const dateRange = `${monthNames[selectedMonth]} ${selectedYear}`;
+      doc.text(`Period: ${dateRange}`, 14, 25);
+
+      // Prepare table data
+      const tableData = filteredData.map((detection) => [
+        detection.device || "N/A",
+        detection.location || "N/A",
+        new Date(detection.timestamp).toLocaleString(),
+        detection.detection,
+      ]);
+
+      // Add table using autoTable
+      autoTable(doc, {
+        startY: 35,
+        head: [["Device", "Location", "Timestamp", "Detection"]],
+        body: tableData,
+        theme: "grid",
+        headStyles: {
+          fillColor: [191, 49, 49],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 10,
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          overflow: "linebreak",
+        },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 70, fontSize: 7 },
+        },
+        margin: { top: 35 },
+      });
+
+      // Save the PDF
+      doc.save(`chainsaw_detection_report_${dateRange.replace(" ", "_")}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF. Please try again.");
+    }
   };
 
   //  Function to handle playing audio
@@ -593,19 +645,11 @@ function Reports() {
           </div>
           <Button
             variant="contained"
-            startIcon={<FileDownloadIcon />}
-            onClick={exportToCSV}
-            className="export-btn"
-          >
-            CSV
-          </Button>
-          <Button
-            variant="contained"
             startIcon={<PdfIcon />}
             onClick={exportToPDF}
             className="export-btn"
           >
-            PDF
+            Export PDF
           </Button>
         </div>
 

@@ -84,6 +84,7 @@ function App() {
         open={alertOpen}
         message={latestDetection?.detection || ""}
         onClose={handleAlertClose}
+        detectionId={latestDetection?._id}
       />
     </BrowserRouter>
   );
