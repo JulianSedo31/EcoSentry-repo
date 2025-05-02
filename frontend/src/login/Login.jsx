@@ -6,7 +6,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 // IMG
 import ecosentryLogo from "../assets/ecosentry.png";
-import loginBackground from "../assets/bg1.jpg";
+import loginBackground from "../assets/deforestation.svg";
 
 function Login() {
   // State for username, password, and error messages
@@ -56,9 +56,19 @@ function Login() {
       {/* Main Content Section */}
       <div className="container-fluid">
         <div className="row">
+          {/* Right Section: Image (Hidden on Small Screens) */}
+          <div className="col-lg-6 col-md-5 d-none d-md-block p-0">
+            <img
+              src={loginBackground}
+              alt="Login Background"
+              className="img-fluid w-70 h-80"
+              style={{ objectFit: "cover" }}
+            />
+          </div>
+
           {/* Left Section: Login Form */}
           <div
-            className="col-12 col-lg-7 col-md-8 d-flex justify-content-center align-items-center mt-3"
+            className="col-12 col-lg-5 col-md-8 d-flex justify-content-center align-items-center mt-3"
             id="loginForm"
           >
             <div
@@ -133,16 +143,6 @@ function Login() {
                 </button>
               </form>
             </div>
-          </div>
-
-          {/* Right Section: Image (Hidden on Small Screens) */}
-          <div className="col-lg-4 col-md-4 d-none d-md-block p-0">
-            <img
-              src={loginBackground}
-              alt="Login Background"
-              className="img-fluid w-70 h-80"
-              style={{ objectFit: "cover" }}
-            />
           </div>
         </div>
       </div>

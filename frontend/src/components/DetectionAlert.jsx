@@ -10,7 +10,14 @@ import {
 import WarningIcon from "@mui/icons-material/Warning";
 import "./style.css";
 
-const DetectionAlert = ({ open, message, onClose, detectionId }) => {
+const DetectionAlert = ({
+  open,
+  message,
+  onClose,
+  detectionId,
+  device,
+  location,
+}) => {
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -71,6 +78,12 @@ const DetectionAlert = ({ open, message, onClose, detectionId }) => {
           <WarningIcon className="alert-icon" />
         </Box>
         <Typography className="alert-message">{message}</Typography>
+        <Typography className="alert-info">
+          Device: {device || "N/A"}
+        </Typography>
+        <Typography className="alert-info">
+          Location: {location || "N/A"}
+        </Typography>
         <Typography className="alert-time">
           Time: {new Date().toLocaleString()}
         </Typography>

@@ -34,6 +34,13 @@
   line-height: 1.4;
 }
 
+.alert-info {
+  color: #666;
+  font-size: 18px !important;
+  margin: 8px 0 !important;
+  font-weight: 500 !important;
+}
+
 .alert-time {
   color: #666;
   font-size: 18px !important;

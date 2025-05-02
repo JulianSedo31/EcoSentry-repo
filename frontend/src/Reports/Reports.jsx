@@ -65,6 +65,7 @@ function Reports() {
   const [detectionToDelete, setDetectionToDelete] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedDevice, setSelectedDevice] = useState("all");
 
   // Get unique years from detections
   const getUniqueYears = () => {
@@ -74,16 +75,24 @@ function Reports() {
     return Array.from(years).sort((a, b) => b - a);
   };
 
-  // Filter detections by month and year
+  // Get unique devices from detections
+  const getUniqueDevices = () => {
+    const devices = new Set(detections.map((d) => d.device));
+    return Array.from(devices).filter(Boolean); // Filter out null/undefined values
+  };
+
+  // Filter detections by month, year, and device
   useEffect(() => {
     const filtered = detections.filter((detection) => {
       const date = new Date(detection.timestamp);
-      return (
-        date.getMonth() === selectedMonth && date.getFullYear() === selectedYear
-      );
+      const monthMatch = date.getMonth() === selectedMonth;
+      const yearMatch = date.getFullYear() === selectedYear;
+      const deviceMatch =
+        selectedDevice === "all" || detection.device === selectedDevice;
+      return monthMatch && yearMatch && deviceMatch;
     });
     setFilteredData(filtered);
-  }, [detections, selectedMonth, selectedYear]);
+  }, [detections, selectedMonth, selectedYear, selectedDevice]);
 
   // Fetch detections from the backend
   useEffect(() => {
@@ -270,6 +279,11 @@ function Reports() {
   // Handle year change
   const handleYearChange = (event) => {
     setSelectedYear(event.target.value);
+  };
+
+  // Handle device change
+  const handleDeviceChange = (event) => {
+    setSelectedDevice(event.target.value);
   };
 
   // Inside your Reports component, add this chart options
@@ -628,7 +642,7 @@ function Reports() {
                 <MenuItem value={11}>December</MenuItem>
               </Select>
             </FormControl>
-            <FormControl sx={{ minWidth: 200 }}>
+            <FormControl sx={{ minWidth: 200, mr: 2 }}>
               <InputLabel>Year</InputLabel>
               <Select
                 value={selectedYear}
@@ -638,6 +652,21 @@ function Reports() {
                 {getUniqueYears().map((year) => (
                   <MenuItem key={year} value={year}>
                     {year}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel>Device</InputLabel>
+              <Select
+                value={selectedDevice}
+                label="Device"
+                onChange={handleDeviceChange}
+              >
+                <MenuItem value="all">All Devices</MenuItem>
+                {getUniqueDevices().map((device) => (
+                  <MenuItem key={device} value={device}>
+                    {device}
                   </MenuItem>
                 ))}
               </Select>
