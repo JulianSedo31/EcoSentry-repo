@@ -564,21 +564,6 @@ function Reports() {
           }}
         >
           <IconButton
-            onClick={() => handlePlayAudio(params.row._id)}
-            color="primary"
-            size="small"
-            disabled={!params.row.file_id}
-            sx={{
-              "&:hover": {
-                backgroundColor: "rgba(25, 118, 210, 0.08)",
-                transform: "scale(1.1)",
-              },
-              transition: "all 0.2s ease-in-out",
-            }}
-          >
-            <PlayIcon />
-          </IconButton>
-          <IconButton
             onClick={() => handleDeleteClick(params.row._id)}
             color="error"
             size="small"
