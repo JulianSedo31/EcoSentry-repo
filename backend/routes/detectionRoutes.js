@@ -1,133 +1,117 @@
+// routes/detectionRoutes.js
 const express = require("express");
 const Detection = require("../models/Detection"); // Import model
+const { GridFSBucket } = require("mongodb");
 const mongoose = require("mongoose");
 
 const router = express.Router();
 
-// GET - Fetch all detections from the detections table
+// GET - Fetch all detections (non-archived by default)
 router.get("/", async (req, res) => {
   try {
-    console.log("📥 Fetching detections from database...");
-    
-    // Log the MongoDB connection state
-    const dbState = mongoose.connection.readyState;
-    console.log("🔌 MongoDB connection state:", dbState);
-    
-    const detections = await Detection.find().sort({ timestamp: -1 });
-    console.log(`✅ Found ${detections.length} detections`);
-    
-    if (detections.length === 0) {
-      console.log("ℹ️ No detections found in database");
-      return res.json([]);
-    }
-    
-    // Transform the data to ensure timestamps are properly formatted
-    const formattedDetections = detections.map(detection => {
-      console.log("🔍 Processing detection:", detection);
-      return {
-        ...detection.toObject(),
-        timestamp: detection.timestamp.toISOString()
-      };
-    });
-    
-    console.log("✨ Sending formatted detections:", JSON.stringify(formattedDetections, null, 2));
-    res.json(formattedDetections);
+    const { includeArchived = "false" } = req.query;
+    const query =
+      includeArchived === "true" ? {} : { isArchived: { $ne: true } };
+    const detections = await Detection.find(query).sort({ timestamp: -1 });
+    res.json(detections);
   } catch (error) {
     console.error("❌ Error fetching detections:", error);
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    res.status(500).json({ 
-      error: "Internal server error",
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// POST - Save detection data to the detections table
+// POST - Save detection data
 router.post("/", async (req, res) => {
   try {
     const { detection } = req.body;
-    console.log("📝 Received detection data:", req.body);
-    
     if (!detection) {
-      console.log("❌ No detection data provided");
       return res.status(400).json({ error: "Detection data is required" });
     }
 
-    console.log("📝 Creating new detection:", detection);
-    const newDetection = new Detection({ 
-      detection,
-      timestamp: new Date() // Explicitly set the timestamp
-    });
-    
-    console.log("💾 Saving detection to database...");
+    const newDetection = new Detection({ detection });
     await newDetection.save();
-    console.log("✅ Detection saved successfully:", newDetection);
 
-    res.status(201).json({ 
-      message: "Detection stored in MongoDB", 
-      status: "success",
-      detection: {
-        ...newDetection.toObject(),
-        timestamp: newDetection.timestamp.toISOString()
-      }
-    });
+    console.log("✅ Detection saved:", newDetection); // Debugging log
+
+    res
+      .status(201)
+      .json({ message: "Detection stored in MongoDB", status: "success" });
   } catch (error) {
     console.error("❌ Error storing detection:", error);
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    res.status(500).json({ 
-      error: "Internal server error",
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// POST - Handle chainsaw detection (real-time detection endpoint)
-router.post("/chainsaw", async (req, res) => {
+// PATCH - Archive a detection (instead of delete)
+router.patch("/:id/archive", async (req, res) => {
   try {
-    const { detection } = req.body;
-    console.log(`🚨 Chainsaw Detected! Data Received:`, req.body);
-    
-    // Save the detection to the database with explicit timestamp
-    const newDetection = new Detection({ 
-      detection,
-      timestamp: new Date() // Explicitly set the timestamp
-    });
-    
-    console.log("💾 Saving chainsaw detection to database...");
-    await newDetection.save();
-    console.log("✅ Chainsaw detection saved successfully");
-    
-    // Respond to the detection script
-    res.json({ 
-      message: "Detection received and saved", 
-      status: "success",
-      detection: {
-        ...newDetection.toObject(),
-        timestamp: newDetection.timestamp.toISOString()
-      }
-    });
+    const { id } = req.params;
+    const { archivedBy } = req.body;
+
+    const archivedDetection = await Detection.findByIdAndUpdate(
+      id,
+      {
+        isArchived: true,
+        archivedAt: new Date(),
+        archivedBy: archivedBy || "System",
+      },
+      { new: true }
+    );
+
+    if (!archivedDetection) {
+      return res.status(404).json({ error: "Detection not found" });
+    }
+
+    console.log("✅ Detection archived:", archivedDetection);
+    res.json({ message: "Detection archived successfully" });
   } catch (error) {
-    console.error("❌ Error saving chainsaw detection:", error);
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    res.status(500).json({ 
-      error: "Internal server error",
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    console.error("❌ Error archiving detection:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PATCH - Restore an archived detection
+router.patch("/:id/restore", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const restoredDetection = await Detection.findByIdAndUpdate(
+      id,
+      {
+        isArchived: false,
+        archivedAt: null,
+        archivedBy: null,
+      },
+      { new: true }
+    );
+
+    if (!restoredDetection) {
+      return res.status(404).json({ error: "Detection not found" });
+    }
+
+    console.log("✅ Detection restored:", restoredDetection);
+    res.json({ message: "Detection restored successfully" });
+  } catch (error) {
+    console.error("❌ Error restoring detection:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE - Delete a detection (keep for admin purposes, but use archive instead)
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedDetection = await Detection.findByIdAndDelete(id);
+
+    if (!deletedDetection) {
+      return res.status(404).json({ error: "Detection not found" });
+    }
+
+    console.log("✅ Detection deleted:", deletedDetection);
+    res.json({ message: "Detection deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting detection:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

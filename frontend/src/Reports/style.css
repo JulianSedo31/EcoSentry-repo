@@ -1,33 +1,56 @@
 .reports-container {
   padding: 2rem;
-  height: 100%;
-  margin-top: 3rem;
-}
-
-.reports-header {
+  height: 90vh;
+  margin-top: 4rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: auto;
 }
 
-.reports-header h1 {
-  font-size: 1.8rem;
-  color: #27323a;
-  margin: 0;
-  font-weight: bold;
+.charts-container {
+  width: 100%;
+  display: flex;
+  gap: 0.2rem;
+  height: 250px;
 }
 
-.actions-container {
+.controls-table-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.chart-box {
+  flex: 1;
+  background-color: #27323a;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.chart-title {
+  margin: 0 0 1.5rem 0;
+  color: #ffffff;
+  text-align: left;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.custom-tooltip {
+  background-color: rgba(20, 30, 45, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.controls-section {
   display: flex;
   gap: 1rem;
-  align-items: center;
-}
-
-.search-field {
-  width: 300px;
-  background-color: white;
-  border-radius: 8px;
+  justify-content: start;
+  flex-wrap: wrap;
 }
 
 .search-field .MuiOutlinedInput-root {
@@ -48,15 +71,44 @@
 }
 
 .table-container {
-  height: calc(100vh - 200px);
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  height: 55vh;
+  width: 55%;
+  /* border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); */
   padding: 1rem;
 }
 
 .data-grid {
   border: none !important;
+}
+
+/* First row highlight */
+.MuiDataGrid-row:first-child {
+  background-color: rgba(25, 118, 210, 0.04) !important;
+}
+
+/* Pagination styling */
+.MuiDataGrid-footerContainer {
+  border-top: 1px solid rgba(224, 224, 224, 1) !important;
+  justify-content: space-between !important;
+}
+
+.MuiTablePagination-root {
+  margin: 0 !important;
+}
+
+.MuiDataGrid-selectedRowCount {
+  display: none !important;
+}
+
+/* Hover effects for rows */
+.MuiDataGrid-row:hover {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Chip styling */
+.MuiChip-root {
+  margin: 0 auto;
 }
 
 /* Responsive adjustments */
@@ -81,5 +133,39 @@
 
   .table-container {
     height: calc(100vh - 250px);
+  }
+}
+
+.action-button:hover {
+  background-color: #e0e0e0;
+}
+
+.spinnerOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw; /* Use viewport width */
+  height: 100vh; /* Use viewport height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* High z-index to be on top of everything */
+}
+
+.spinner {
+  border: 5px solid rgba(0, 0, 0, 0.1);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border-left-color: #27323a; /* Use a prominent color */
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }
