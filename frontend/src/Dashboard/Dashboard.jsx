@@ -1,12 +1,13 @@
 // LEAFLET MAP
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 // CSS
 import "./style.css";
 // COMPONENTS
 import DetectionAlert from "../components/DetectionAlert";
+import { database, ref, onValue } from "../firebase-config";
 
 const canAyanCoordinates = [8.154557, 125.151347]; // Can-ayan Coordinates
 const cabanglasanCoordinates = [8.0833, 125.3]; // Cabanglasan Coordinates
@@ -48,6 +49,8 @@ function Dashboard() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [latestDetection, setLatestDetection] = useState(null);
   const [pageLoadTime] = useState(new Date()); // Store when the page was loaded
+  const [gpsPosition, setGpsPosition] = useState(null);
+  const markerRef = useRef();
 
   useEffect(() => {
     // Function to fetch alerts
@@ -110,6 +113,19 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [latestDetection, pageLoadTime]);
 
+  // Replace the GPS-fetching useEffect with this:
+  useEffect(() => {
+    const gpsRef = ref(database, 'gps_data');
+    const unsubscribe = onValue(gpsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.latitude && data.longitude) {
+        setGpsPosition([data.latitude, data.longitude]);
+      }
+    });
+
+    return () => unsubscribe(); // Cleanup on unmount
+  }, []);
+
   const handleAlertClose = () => {
     setAlertOpen(false);
   };
@@ -153,6 +169,19 @@ function Dashboard() {
             </div>
           </Popup>
         </Marker>
+        {/* GPS Dongle Marker */}
+        {gpsPosition && (
+          <Marker position={gpsPosition} icon={alertIcon} ref={markerRef}>
+            <Popup closeButton={false} autoPan={false}>
+              <div>
+                <strong>Device: GPS Dongle</strong>
+                <p>Live Location</p>
+                <p>Lat: {gpsPosition[0]}</p>
+                <p>Lon: {gpsPosition[1]}</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );
