@@ -50,6 +50,10 @@ function Dashboard() {
   const [latestDetection, setLatestDetection] = useState(null);
   const [pageLoadTime] = useState(new Date()); // Store when the page was loaded
   const [gpsPosition, setGpsPosition] = useState(null);
+  const [alertMarkers, setAlertMarkers] = useState([]); // Store GPS alert markers
+  const [liveGpsCoordinates, setLiveGpsCoordinates] = useState(null); // Real-time GPS from detections
+  const [gpsPinVisible, setGpsPinVisible] = useState(false); // Control pin visibility
+  const [gpsPinTimer, setGpsPinTimer] = useState(null); // Timer for pin visibility
   const markerRef = useRef();
 
   useEffect(() => {
@@ -60,11 +64,71 @@ function Dashboard() {
           "http://localhost:5000/api/detection?includeArchived=false"
         );
         const data = await response.json();
+        
+        console.log("📊 Fetched detections:", data.length);
 
-        // Filter for chainsaw alerts
+        // Filter for chainsaw alerts (case-insensitive)
         const chainsawAlerts = data.filter((detection) =>
-          detection.detection.includes("Chainsaw")
+          detection.detection.toLowerCase().includes("chainsaw")
         );
+        
+        console.log("🚨 Chainsaw alerts found:", chainsawAlerts.length);
+
+        // Extract GPS coordinates from alerts and create markers
+        const gpsAlerts = chainsawAlerts.filter((detection) => 
+          detection.latitude && detection.longitude
+        );
+        
+        console.log("🗺️ GPS alerts found:", gpsAlerts.length);
+        
+        // Debug: Show first GPS alert details
+        if (gpsAlerts.length > 0) {
+          console.log("📍 First GPS alert:", {
+            lat: gpsAlerts[0].latitude,
+            lon: gpsAlerts[0].longitude,
+            detection: gpsAlerts[0].detection,
+            timestamp: gpsAlerts[0].timestamp
+          });
+        }
+        
+        const newAlertMarkers = gpsAlerts.map((detection, index) => ({
+          id: detection._id,
+          position: [detection.latitude, detection.longitude],
+          timestamp: detection.timestamp,
+          device: detection.device,
+          detection: detection.detection
+        }));
+        
+        setAlertMarkers(newAlertMarkers);
+
+        // Update live GPS coordinates with the most recent detection
+        if (gpsAlerts.length > 0) {
+          const latestGpsAlert = gpsAlerts[0]; // Most recent GPS alert
+          const newCoordinates = [latestGpsAlert.latitude, latestGpsAlert.longitude];
+          
+          // Check if coordinates have changed
+          if (!liveGpsCoordinates || 
+              Math.abs(liveGpsCoordinates[0] - newCoordinates[0]) > 0.0001 || 
+              Math.abs(liveGpsCoordinates[1] - newCoordinates[1]) > 0.0001) {
+            
+            console.log("🔄 New GPS coordinates received:", newCoordinates);
+            setLiveGpsCoordinates(newCoordinates);
+            setGpsPinVisible(true);
+            
+            // Clear existing timer
+            if (gpsPinTimer) {
+              clearTimeout(gpsPinTimer);
+            }
+            
+            // Set new timer to hide pin after 10 seconds
+            const timer = setTimeout(() => {
+              console.log("⏰ GPS pin timer expired, hiding pin");
+              setGpsPinVisible(false);
+            }, 10000); // 10 seconds
+            
+            setGpsPinTimer(timer);
+          }
+        }
 
         // Check if there's a new alert that occurred after page load
         if (chainsawAlerts.length > 0) {
@@ -110,8 +174,13 @@ function Dashboard() {
     const interval = setInterval(fetchAlerts, 5000);
 
     // Cleanup interval on component unmount
-    return () => clearInterval(interval);
-  }, [latestDetection, pageLoadTime]);
+    return () => {
+      clearInterval(interval);
+      if (gpsPinTimer) {
+        clearTimeout(gpsPinTimer);
+      }
+    };
+  }, [latestDetection, pageLoadTime, liveGpsCoordinates, gpsPinTimer]);
 
   // Replace the GPS-fetching useEffect with this:
   useEffect(() => {
@@ -140,27 +209,49 @@ function Dashboard() {
         detectionId={latestDetection?._id}
         device={latestDetection?.device}
         location={latestDetection?.location}
-        s
+        latitude={latestDetection?.latitude}
+        longitude={latestDetection?.longitude}
       />
 
       {/* Fullscreen Map */}
       <MapContainer
-        center={canAyanCoordinates} // Center on Can-ayan
-        zoom={12}
+        center={liveGpsCoordinates || canAyanCoordinates} // Center on live GPS or fallback
+        zoom={15}
         className="map-container"
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        <Marker position={canAyanCoordinates} icon={redIcon}>
-          <Popup closeButton={false} autoPan={false}>
-            <div>
-              <strong>Device: Sentry 1</strong>
-              <p>Location: Can-ayan, Malaybalay City</p>
-            </div>
-          </Popup>
-        </Marker>
+        {/* Live GPS Coordinates Pin - Shows for 10 seconds when new coordinates arrive */}
+        {liveGpsCoordinates && gpsPinVisible && (
+          <Marker position={liveGpsCoordinates} icon={redIcon}>
+            <Popup closeButton={false} autoPan={false}>
+              <div>
+                <strong>🚨 Live GPS Detection</strong>
+                <p><strong>Device:</strong> EcoSentry-Rx</p>
+                <p><strong>Location:</strong> Can-ayan, Bukidnon</p>
+                <p><strong>GPS:</strong> {liveGpsCoordinates[0].toFixed(8)}, {liveGpsCoordinates[1].toFixed(8)}</p>
+                <p><strong>Status:</strong> Real-time Monitoring</p>
+                <p><strong>Last Update:</strong> {new Date().toLocaleTimeString()}</p>
+                <p><strong>Pin Duration:</strong> 10 seconds</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
+        
+        {/* Fallback Static Marker */}
+        {!liveGpsCoordinates && (
+          <Marker position={canAyanCoordinates} icon={blueIcon}>
+            <Popup closeButton={false} autoPan={false}>
+              <div>
+                <strong>Device: Sentry 1</strong>
+                <p>Location: Can-ayan, Malaybalay City</p>
+                <p>Status: Waiting for GPS data...</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
         <Marker position={cabanglasanCoordinates} icon={blueIcon}>
           <Popup closeButton={false} autoPan={false}>
             <div>
@@ -182,6 +273,22 @@ function Dashboard() {
             </Popup>
           </Marker>
         )}
+        
+        {/* GPS Alert Markers */}
+        {alertMarkers.map((marker) => (
+          <Marker key={marker.id} position={marker.position} icon={alertIcon}>
+            <Popup closeButton={false} autoPan={false}>
+              <div>
+                <strong>🚨 Chainsaw Alert</strong>
+                <p><strong>Device:</strong> {marker.device}</p>
+                <p><strong>Time:</strong> {new Date(marker.timestamp).toLocaleString()}</p>
+                <p><strong>Lat:</strong> {marker.position[0].toFixed(6)}</p>
+                <p><strong>Lon:</strong> {marker.position[1].toFixed(6)}</p>
+                <p><strong>Detection:</strong> {marker.detection}</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
     </div>
   );
