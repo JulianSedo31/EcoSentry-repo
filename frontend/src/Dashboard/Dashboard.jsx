@@ -64,7 +64,7 @@ function Dashboard() {
           "http://localhost:5000/api/detection?includeArchived=false"
         );
         const data = await response.json();
-        
+
         console.log("📊 Fetched detections:", data.length);
 
         // Filter for chainsaw alerts (case-insensitive)
@@ -243,14 +243,14 @@ function Dashboard() {
         {/* Fallback Static Marker */}
         {!liveGpsCoordinates && (
           <Marker position={canAyanCoordinates} icon={blueIcon}>
-            <Popup closeButton={false} autoPan={false}>
-              <div>
-                <strong>Device: Sentry 1</strong>
-                <p>Location: Can-ayan, Malaybalay City</p>
+          <Popup closeButton={false} autoPan={false}>
+            <div>
+              <strong>Device: Sentry 1</strong>
+              <p>Location: Can-ayan, Malaybalay City</p>
                 <p>Status: Waiting for GPS data...</p>
-              </div>
-            </Popup>
-          </Marker>
+            </div>
+          </Popup>
+        </Marker>
         )}
         <Marker position={cabanglasanCoordinates} icon={blueIcon}>
           <Popup closeButton={false} autoPan={false}>
