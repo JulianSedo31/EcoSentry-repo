@@ -17,15 +17,30 @@ def insert_detection():
     data['timestamp'] = datetime.utcnow()
     
     # Parse GPS coordinates from detection message if available
-    if 'detection' in data and 'ALERT,CHAINSAW,' in data['detection']:
-        parts = data['detection'].split(',')
-        if len(parts) >= 4 and parts[2] != 'NOFIX' and parts[3] != 'NOFIX':
-            try:
-                data['latitude'] = float(parts[2])
-                data['longitude'] = float(parts[3])
-                print(f"GPS coordinates parsed: {data['latitude']}, {data['longitude']}")
-            except ValueError:
-                print("Failed to parse GPS coordinates")
+    if 'detection' in data:
+        detection_msg = data['detection']
+        
+        # Remove PKT#xxx|DeviceName| prefix if present
+        if '|' in detection_msg:
+            parts = detection_msg.split('|')
+            if len(parts) >= 3:
+                # Extract the actual message after the second |
+                clean_message = '|'.join(parts[2:])
+            else:
+                clean_message = detection_msg
+        else:
+            clean_message = detection_msg
+        
+        # Parse GPS coordinates from ALERT,CHAINSAW,lat,lon format
+        if 'ALERT,CHAINSAW,' in clean_message:
+            coords = clean_message.split(',')
+            if len(coords) >= 4 and coords[2] != 'NOFIX' and coords[3] != 'NOFIX':
+                try:
+                    data['latitude'] = float(coords[2])
+                    data['longitude'] = float(coords[3])
+                    print(f"GPS coordinates parsed: {data['latitude']}, {data['longitude']}")
+                except ValueError:
+                    print("Failed to parse GPS coordinates")
     
     result = collection.insert_one(data)
     return jsonify({'status': 'success', 'id': str(result.inserted_id)}), 200
