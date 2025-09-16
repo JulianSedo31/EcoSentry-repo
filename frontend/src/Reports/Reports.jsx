@@ -64,6 +64,34 @@ function Reports() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedDevice, setSelectedDevice] = useState("all");
 
+  // Function to parse detection message and remove prefix
+  const parseDetectionMessage = (msg) => {
+    if (!msg) return { cleanMessage: "", coordinates: null };
+    
+    // Remove PKT#xxx|DeviceName| prefix
+    const parts = msg.split('|');
+    let cleanMessage = msg;
+    let coordinates = null;
+    
+    if (parts.length >= 3) {
+      // Extract the actual message after the second |
+      cleanMessage = parts.slice(2).join('|');
+      
+      // Parse GPS coordinates from ALERT,CHAINSAW,lat,lon format
+      if (cleanMessage.startsWith('ALERT,CHAINSAW,')) {
+        const coords = cleanMessage.split(',');
+        if (coords.length >= 4 && coords[2] !== 'NOFIX' && coords[3] !== 'NOFIX') {
+          coordinates = {
+            latitude: parseFloat(coords[2]),
+            longitude: parseFloat(coords[3])
+          };
+        }
+      }
+    }
+    
+    return { cleanMessage, coordinates };
+  };
+
   // Get unique years from detections
   const getUniqueYears = () => {
     const years = new Set(
@@ -238,43 +266,63 @@ function Reports() {
       doc.setFontSize(11);
       doc.text(`Total Detections: ${filteredData.length}`, 20, 75);
 
-      // TABLE DATA
-      const tableData = filteredData.map((detection) => [
-        detection.device || "N/A",
-        detection.location || "N/A",
-        new Date(detection.timestamp).toLocaleString(),
-        detection.detection,
-      ]);
+          // TABLE DATA
+          // Use explicit latitude/longitude if present on the detection object,
+          // otherwise try to parse coordinates from the detection message.
+          const tableData = filteredData.map((detection) => {
+            const parsed = parseDetectionMessage(detection.detection || "");
+            const lat =
+              detection.latitude != null
+                ? detection.latitude
+                : parsed.coordinates
+                ? parsed.coordinates.latitude
+                : null;
+            const lon =
+              detection.longitude != null
+                ? detection.longitude
+                : parsed.coordinates
+                ? parsed.coordinates.longitude
+                : null;
 
-      autoTable(doc, {
-        startY: 80,
-        head: [["Device", "Location", "Timestamp", "Detection"]],
-        body: tableData,
-        theme: "grid",
-        headStyles: {
-          fillColor: [34, 139, 34], // Forest green
-          textColor: 255,
-          fontStyle: "bold",
-          fontSize: 10,
-          halign: "center",
-        },
-        styles: {
-          fontSize: 9,
-          cellPadding: 4,
-          overflow: "linebreak",
-          halign: "left",
-        },
-        columnStyles: {
-          0: { cellWidth: 30, halign: "center" },
-          1: { cellWidth: 55 },
-          2: { cellWidth: 50, halign: "center" },
-          3: { cellWidth: 55, halign: "center" },
-        },
-        margin: { top: 20, bottom: 50 },
-        alternateRowStyles: {
-          fillColor: [248, 249, 250],
-        },
-      });
+            return [
+              detection.device || "N/A",
+              lat != null ? lat.toFixed(8) : "N/A",
+              lon != null ? lon.toFixed(8) : "N/A",
+              new Date(detection.timestamp).toLocaleString(),
+              detection.detection,
+            ];
+          });
+
+          autoTable(doc, {
+            startY: 80,
+            head: [["Device", "Latitude", "Longitude", "Timestamp", "Detection"]],
+            body: tableData,
+            theme: "grid",
+            headStyles: {
+              fillColor: [34, 139, 34], // Forest green
+              textColor: 255,
+              fontStyle: "bold",
+              fontSize: 10,
+              halign: "center",
+            },
+            styles: {
+              fontSize: 9,
+              cellPadding: 4,
+              overflow: "linebreak",
+              halign: "left",
+            },
+            columnStyles: {
+              0: { cellWidth: 30, halign: "center" },
+              1: { cellWidth: 35, halign: "center" },
+              2: { cellWidth: 35, halign: "center" },
+              3: { cellWidth: 50, halign: "center" },
+              4: { cellWidth: 55, halign: "center" },
+            },
+            margin: { top: 20, bottom: 50 },
+            alternateRowStyles: {
+              fillColor: [248, 249, 250],
+            },
+          });
 
       // FOOTER / SIGNATURE BLOCK
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -541,12 +589,42 @@ function Reports() {
       align: "center",
     },
     {
-      field: "location",
-      headerName: "Location",
-      flex: 2,
-      minWidth: 300,
+      field: "latitude",
+      headerName: "Latitude",
+      flex: 1,
+      minWidth: 140,
       headerAlign: "center",
       align: "center",
+      renderCell: (params) => {
+        const detection = params.row || {};
+        const parsed = parseDetectionMessage(detection.detection || "");
+        const lat =
+          detection.latitude != null
+            ? detection.latitude
+            : parsed.coordinates
+            ? parsed.coordinates.latitude
+            : null;
+        return lat != null ? lat.toFixed(8) : "N/A";
+      },
+    },
+    {
+      field: "longitude",
+      headerName: "Longitude",
+      flex: 1,
+      minWidth: 140,
+      headerAlign: "center",
+      align: "center",
+      renderCell: (params) => {
+        const detection = params.row || {};
+        const parsed = parseDetectionMessage(detection.detection || "");
+        const lon =
+          detection.longitude != null
+            ? detection.longitude
+            : parsed.coordinates
+            ? parsed.coordinates.longitude
+            : null;
+        return lon != null ? lon.toFixed(8) : "N/A";
+      },
     },
     {
       field: "timestamp",
@@ -571,18 +649,21 @@ function Reports() {
       align: "center",
       renderCell: (params) => {
         const message = params.row.detection;
-        let displayMessage = message;
+        const { cleanMessage, coordinates } = parseDetectionMessage(message);
+        let displayMessage = cleanMessage;
 
-        if (message.includes("Chainsaw Detected")) {
+        if (cleanMessage.includes("Chainsaw Detected")) {
           displayMessage = "🔴 Chainsaw Detected";
-        } else if (message.includes("Possible Chainsaw")) {
+        } else if (cleanMessage.includes("Possible Chainsaw")) {
           displayMessage = "🟡 Chainsaw Detected";
+        } else if (cleanMessage.includes("ALERT,CHAINSAW")) {
+          displayMessage = "🔴 Chainsaw Detected";
         }
 
         return (
           <div
             style={{
-              color: message.includes("Chainsaw Detected")
+              color: cleanMessage.includes("Chainsaw Detected") || cleanMessage.includes("ALERT,CHAINSAW")
                 ? "#000000"
                 : "#000000",
               fontWeight: "500",
@@ -590,6 +671,11 @@ function Reports() {
             }}
           >
             {displayMessage}
+            {coordinates && (
+              <div style={{ fontSize: "0.75rem", color: "#666", marginTop: "4px" }}>
+                Lat: {coordinates.latitude.toFixed(8)}, Lon: {coordinates.longitude.toFixed(8)}
+              </div>
+            )}
           </div>
         );
       },

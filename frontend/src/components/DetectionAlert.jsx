@@ -18,17 +18,51 @@ const DetectionAlert = ({
   detectionId,
   device,
   location,
+  latitude: propLatitude,
+  longitude: propLongitude,
 }) => {
   const audioRef = useRef(null);
 
+  // Function to parse detection message and remove prefix
+  const parseDetectionMessage = (msg) => {
+    if (!msg) return { cleanMessage: "", coordinates: null };
+    
+    // Remove PKT#xxx|DeviceName| prefix
+    const parts = msg.split('|');
+    let cleanMessage = msg;
+    let coordinates = null;
+    
+    if (parts.length >= 3) {
+      // Extract the actual message after the second |
+      cleanMessage = parts.slice(2).join('|');
+      
+      // Parse GPS coordinates from ALERT,CHAINSAW,lat,lon format
+      if (cleanMessage.startsWith('ALERT,CHAINSAW,')) {
+        const coords = cleanMessage.split(',');
+        if (coords.length >= 4 && coords[2] !== 'NOFIX' && coords[3] !== 'NOFIX') {
+          coordinates = {
+            latitude: parseFloat(coords[2]),
+            longitude: parseFloat(coords[3])
+          };
+        }
+      }
+    }
+    
+    return { cleanMessage, coordinates };
+  };
+
   // Function to format the message with appropriate color
   const formatMessage = (msg) => {
-    if (msg.includes("Chainsaw Detected")) {
+    const { cleanMessage } = parseDetectionMessage(msg);
+    
+    if (cleanMessage.includes("Chainsaw Detected")) {
       return "🔴 Chainsaw Detected";
-    } else if (msg.includes("Possible Chainsaw")) {
+    } else if (cleanMessage.includes("Possible Chainsaw")) {
       return "🟡 Chainsaw Detected";
+    } else if (cleanMessage.includes("ALERT,CHAINSAW")) {
+      return "🔴 Chainsaw Detected";
     }
-    return msg;
+    return cleanMessage;
   };
 
   useEffect(() => {
@@ -77,9 +111,35 @@ const DetectionAlert = ({
         <Typography className="alert-info">
           Device: {device || "N/A"}
         </Typography>
-        <Typography className="alert-info">
-          Location: {location || "N/A"}
-        </Typography>
+        {(() => {
+          // Determine latitude/longitude to display.
+          const parsed = parseDetectionMessage(message) || {};
+          const coords = parsed.coordinates || null;
+
+          const lat =
+            propLatitude != null
+              ? propLatitude
+              : coords
+              ? coords.latitude
+              : null;
+          const lon =
+            propLongitude != null
+              ? propLongitude
+              : coords
+              ? coords.longitude
+              : null;
+
+          return (
+            <>
+              <Typography className="alert-info">
+                Latitude: {lat != null ? lat.toFixed(8) : "N/A"}
+              </Typography>
+              <Typography className="alert-info">
+                Longitude: {lon != null ? lon.toFixed(8) : "N/A"}
+              </Typography>
+            </>
+          );
+        })()}
         <Typography className="alert-time">
           Time: {new Date().toLocaleString()}
         </Typography>
