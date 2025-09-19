@@ -45,7 +45,7 @@ const alertIcon = new L.Icon({
 });
 
 function Dashboard() {
-  const [alerts, setAlerts] = useState([]);
+  // const [alerts, setAlerts] = useState([]); // no longer used after deduplicating markers
   const [alertOpen, setAlertOpen] = useState(false);
   const [latestDetection, setLatestDetection] = useState(null);
   const [pageLoadTime] = useState(new Date()); // Store when the page was loaded
@@ -59,28 +59,32 @@ function Dashboard() {
   // Function to parse detection message and remove prefix
   const parseDetectionMessage = (msg) => {
     if (!msg) return { cleanMessage: "", coordinates: null };
-    
+
     // Remove PKT#xxx|DeviceName| prefix
-    const parts = msg.split('|');
+    const parts = msg.split("|");
     let cleanMessage = msg;
     let coordinates = null;
-    
+
     if (parts.length >= 3) {
       // Extract the actual message after the second |
-      cleanMessage = parts.slice(2).join('|');
-      
+      cleanMessage = parts.slice(2).join("|");
+
       // Parse GPS coordinates from ALERT,CHAINSAW,lat,lon format
-      if (cleanMessage.startsWith('ALERT,CHAINSAW,')) {
-        const coords = cleanMessage.split(',');
-        if (coords.length >= 4 && coords[2] !== 'NOFIX' && coords[3] !== 'NOFIX') {
+      if (cleanMessage.startsWith("ALERT,CHAINSAW,")) {
+        const coords = cleanMessage.split(",");
+        if (
+          coords.length >= 4 &&
+          coords[2] !== "NOFIX" &&
+          coords[3] !== "NOFIX"
+        ) {
           coordinates = {
             latitude: parseFloat(coords[2]),
-            longitude: parseFloat(coords[3])
+            longitude: parseFloat(coords[3]),
           };
         }
       }
     }
-    
+
     return { cleanMessage, coordinates };
   };
 
@@ -99,7 +103,7 @@ function Dashboard() {
         const chainsawAlerts = data.filter((detection) =>
           detection.detection.toLowerCase().includes("chainsaw")
         );
-        
+
         console.log("🚨 Chainsaw alerts found:", chainsawAlerts.length);
 
         // Extract GPS coordinates from alerts and create markers
@@ -108,9 +112,9 @@ function Dashboard() {
           const { coordinates } = parseDetectionMessage(detection.detection);
           return (detection.latitude && detection.longitude) || coordinates;
         });
-        
+
         console.log("🗺️ GPS alerts found:", gpsAlerts.length);
-        
+
         // Debug: Show first GPS alert details
         if (gpsAlerts.length > 0) {
           const { coordinates } = parseDetectionMessage(gpsAlerts[0].detection);
@@ -118,55 +122,74 @@ function Dashboard() {
             lat: gpsAlerts[0].latitude || coordinates?.latitude,
             lon: gpsAlerts[0].longitude || coordinates?.longitude,
             detection: gpsAlerts[0].detection,
-            timestamp: gpsAlerts[0].timestamp
+            timestamp: gpsAlerts[0].timestamp,
           });
         }
-        
-        const newAlertMarkers = gpsAlerts.map((detection, index) => {
+
+        // Deduplicate GPS alerts by device: keep only the most recent alert per device
+        const markerByDevice = {};
+        gpsAlerts.forEach((detection) => {
           const { coordinates } = parseDetectionMessage(detection.detection);
-          return {
-            id: detection._id,
-            position: [
-              detection.latitude || coordinates?.latitude, 
-              detection.longitude || coordinates?.longitude
-            ],
-            timestamp: detection.timestamp,
-            device: detection.device,
-            detection: detection.detection
-          };
+          const position = [
+            detection.latitude || coordinates?.latitude,
+            detection.longitude || coordinates?.longitude,
+          ];
+
+          // If device is missing, fall back to id to avoid clobbering
+          const key = detection.device || detection._id;
+
+          // If we haven't seen this device or this detection is newer, store it
+          if (
+            !markerByDevice[key] ||
+            new Date(detection.timestamp) >
+              new Date(markerByDevice[key].timestamp)
+          ) {
+            markerByDevice[key] = {
+              id: detection._id,
+              position,
+              timestamp: detection.timestamp,
+              device: detection.device,
+              detection: detection.detection,
+            };
+          }
         });
-        
+
+        // Convert the map to an array of markers
+        const newAlertMarkers = Object.values(markerByDevice);
         setAlertMarkers(newAlertMarkers);
 
         // Update live GPS coordinates with the most recent detection
         if (gpsAlerts.length > 0) {
           const latestGpsAlert = gpsAlerts[0]; // Most recent GPS alert
-          const { coordinates } = parseDetectionMessage(latestGpsAlert.detection);
+          const { coordinates } = parseDetectionMessage(
+            latestGpsAlert.detection
+          );
           const newCoordinates = [
-            latestGpsAlert.latitude || coordinates?.latitude, 
-            latestGpsAlert.longitude || coordinates?.longitude
+            latestGpsAlert.latitude || coordinates?.latitude,
+            latestGpsAlert.longitude || coordinates?.longitude,
           ];
-          
+
           // Check if coordinates have changed
-          if (!liveGpsCoordinates || 
-              Math.abs(liveGpsCoordinates[0] - newCoordinates[0]) > 0.0001 || 
-              Math.abs(liveGpsCoordinates[1] - newCoordinates[1]) > 0.0001) {
-            
+          if (
+            !liveGpsCoordinates ||
+            Math.abs(liveGpsCoordinates[0] - newCoordinates[0]) > 0.0001 ||
+            Math.abs(liveGpsCoordinates[1] - newCoordinates[1]) > 0.0001
+          ) {
             console.log("🔄 New GPS coordinates received:", newCoordinates);
             setLiveGpsCoordinates(newCoordinates);
             setGpsPinVisible(true);
-            
+
             // Clear existing timer
             if (gpsPinTimer) {
               clearTimeout(gpsPinTimer);
             }
-            
+
             // Set new timer to hide pin after 10 seconds
             const timer = setTimeout(() => {
               console.log("⏰ GPS pin timer expired, hiding pin");
               setGpsPinVisible(false);
             }, 10000); // 10 seconds
-            
+
             setGpsPinTimer(timer);
           }
         }
@@ -202,7 +225,7 @@ function Dashboard() {
           setLatestDetection(null);
         }
 
-        setAlerts(chainsawAlerts);
+        // alerts are processed/deduplicated into alertMarkers; no need to store full list here
       } catch (error) {
         console.error("Error fetching alerts:", error);
       }
@@ -225,7 +248,7 @@ function Dashboard() {
 
   // Replace the GPS-fetching useEffect with this:
   useEffect(() => {
-    const gpsRef = ref(database, 'gps_data');
+    const gpsRef = ref(database, "gps_data");
     const unsubscribe = onValue(gpsRef, (snapshot) => {
       const data = snapshot.val();
       if (data && data.latitude && data.longitude) {
@@ -270,28 +293,42 @@ function Dashboard() {
             <Popup closeButton={false} autoPan={false}>
               <div>
                 <strong>🚨 Live GPS Detection</strong>
-                <p><strong>Device:</strong> EcoSentry-Rx</p>
-                <p><strong>Location:</strong> Can-ayan, Bukidnon</p>
-                <p><strong>GPS:</strong> {liveGpsCoordinates[0].toFixed(8)}, {liveGpsCoordinates[1].toFixed(8)}</p>
-                <p><strong>Status:</strong> Real-time Monitoring</p>
-                <p><strong>Last Update:</strong> {new Date().toLocaleTimeString()}</p>
-                <p><strong>Pin Duration:</strong> 10 seconds</p>
+                <p>
+                  <strong>Device:</strong> EcoSentry-Rx
+                </p>
+                <p>
+                  <strong>Location:</strong> Can-ayan, Bukidnon
+                </p>
+                <p>
+                  <strong>GPS:</strong> {liveGpsCoordinates[0].toFixed(8)},{" "}
+                  {liveGpsCoordinates[1].toFixed(8)}
+                </p>
+                <p>
+                  <strong>Status:</strong> Real-time Monitoring
+                </p>
+                <p>
+                  <strong>Last Update:</strong>{" "}
+                  {new Date().toLocaleTimeString()}
+                </p>
+                <p>
+                  <strong>Pin Duration:</strong> 10 seconds
+                </p>
               </div>
             </Popup>
           </Marker>
         )}
-        
+
         {/* Fallback Static Marker */}
         {!liveGpsCoordinates && (
           <Marker position={canAyanCoordinates} icon={blueIcon}>
-          <Popup closeButton={false} autoPan={false}>
-            <div>
-              <strong>Device: Sentry 1</strong>
-              <p>Location: Can-ayan, Malaybalay City</p>
+            <Popup closeButton={false} autoPan={false}>
+              <div>
+                <strong>Device: Sentry 1</strong>
+                <p>Location: Can-ayan, Malaybalay City</p>
                 <p>Status: Waiting for GPS data...</p>
-            </div>
-          </Popup>
-        </Marker>
+              </div>
+            </Popup>
+          </Marker>
         )}
         <Marker position={cabanglasanCoordinates} icon={blueIcon}>
           <Popup closeButton={false} autoPan={false}>
@@ -314,7 +351,7 @@ function Dashboard() {
             </Popup>
           </Marker>
         )}
-        
+
         {/* GPS Alert Markers */}
         {alertMarkers.map((marker) => {
           const { cleanMessage } = parseDetectionMessage(marker.detection);
@@ -323,11 +360,22 @@ function Dashboard() {
               <Popup closeButton={false} autoPan={false}>
                 <div>
                   <strong>🚨 Chainsaw Alert</strong>
-                  <p><strong>Device:</strong> {marker.device}</p>
-                  <p><strong>Time:</strong> {new Date(marker.timestamp).toLocaleString()}</p>
-                  <p><strong>Latitude:</strong> {marker.position[0].toFixed(8)}</p>
-                  <p><strong>Longitude:</strong> {marker.position[1].toFixed(8)}</p>
-                  <p><strong>Detection:</strong> {cleanMessage}</p>
+                  <p>
+                    <strong>Device:</strong> {marker.device}
+                  </p>
+                  <p>
+                    <strong>Time:</strong>{" "}
+                    {new Date(marker.timestamp).toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>Latitude:</strong> {marker.position[0].toFixed(8)}
+                  </p>
+                  <p>
+                    <strong>Longitude:</strong> {marker.position[1].toFixed(8)}
+                  </p>
+                  <p>
+                    <strong>Detection:</strong> {cleanMessage}
+                  </p>
                 </div>
               </Popup>
             </Marker>
