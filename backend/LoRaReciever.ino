@@ -8,6 +8,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "SPIFFS.h"
+#include "mbedtls/base64.h"
 
 // OLED Configuration
 #define SCREEN_WIDTH 128
@@ -27,8 +29,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define LORA_SYNC_WORD 0xF3
 
 // WiFi Configuration
-const char* ssid = "PLDT_Home_464D8_5G";
-const char* password = "pldthome";
+const char* ssid = "Chuy";
+const char* password = "Chuy1234";
 const char* serverName = "http://192.168.1.237:5000/insert_detection";
 
 // Timing Constants
@@ -40,6 +42,14 @@ const unsigned long RSSI_UPDATE_INTERVAL = 2000;
 // Device Configuration
 const String receiverID = "EcoSentry-Rx";
 const String location = "Can-ayan, Bukidnon";
+
+// Upload configuration (receiver will POST to this when it reassembles audio)
+const char* uploadHost = "192.168.1.237"; // server IP (no internet at site)
+const uint16_t uploadPort = 5000;
+const char* uploadPath = "/api/detection/audio_upload";
+const unsigned long UPLOAD_CHECK_INTERVAL = 15000; // check every 15s
+
+unsigned long lastUploadCheck = 0;
 
 // Receiver State
 struct {
@@ -79,14 +89,224 @@ void setup() {
   displaySplashScreen();
   initializeLoRa();
   connectToWiFi();
+  // Initialize SPIFFS for storing incoming file chunks
+  if (!SPIFFS.begin(true)) {
+    Serial.println("⚠️ SPIFFS mount failed");
+  } else {
+    Serial.println("✅ SPIFFS mounted");
+  }
 }
 
 void loop() {
   unsigned long currentTime = millis();
   handleWiFiConnection(currentTime);
   handleLoRaPackets(currentTime);
+  // Periodically check for completed incoming files and upload them
+  if (currentTime - lastUploadCheck >= UPLOAD_CHECK_INTERVAL) {
+    processIncomingFiles();
+    lastUploadCheck = currentTime;
+  }
   updateDisplay(currentTime);
   delay(10);
+}
+
+// ------------------- INCOMING FILE PROCESSING & UPLOAD -------------------
+
+struct ChunkItem {
+  int seq;
+  int total;
+  String b64;
+};
+
+void processIncomingFiles() {
+  Serial.println("[FILE] Scanning SPIFFS for incoming files...");
+  File root = SPIFFS.open("/");
+  if (!root) {
+    Serial.println("[FILE] failed to open SPIFFS root");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    String name = file.name();
+    if (name.startsWith("/incoming_") && name.endsWith(".b64")) {
+      Serial.println("[FILE] Found: " + name);
+      // Read all lines and parse chunks
+      std::vector<ChunkItem> chunks;
+      file.seek(0);
+      while (file.available()) {
+        String line = file.readStringUntil('\n');
+        line.trim();
+        if (line.length() == 0) continue;
+        if (line.startsWith("FILE|") || line.startsWith("FILE_END|")) {
+          int a = line.indexOf('|');
+          int b = line.indexOf('|', a + 1);
+          int c = line.indexOf('|', b + 1);
+          int d = line.indexOf('|', c + 1);
+          if (a < 0 || b < 0 || c < 0 || d < 0) continue;
+          String fileId = line.substring(a + 1, b);
+          int seq = line.substring(b + 1, c).toInt();
+          int total = line.substring(c + 1, d).toInt();
+          String b64 = line.substring(d + 1);
+          ChunkItem it; it.seq = seq; it.total = total; it.b64 = b64;
+          chunks.push_back(it);
+        }
+      }
+
+      if (chunks.size() == 0) {
+        Serial.println("[FILE] no valid chunks in " + name);
+        file = root.openNextFile();
+        continue;
+      }
+
+      // Determine expected total
+      int expectedTotal = chunks[0].total;
+      for (size_t i = 0; i < chunks.size(); ++i) {
+        if (chunks[i].total > expectedTotal) expectedTotal = chunks[i].total;
+      }
+
+      // Build map of seq -> b64
+      std::vector<String> seqMap(expectedTotal);
+      int got = 0;
+      for (size_t i = 0; i < chunks.size(); ++i) {
+        if (chunks[i].seq >= 0 && chunks[i].seq < expectedTotal) {
+          if (seqMap[chunks[i].seq].length() == 0) {
+            seqMap[chunks[i].seq] = chunks[i].b64;
+            got++;
+          }
+        }
+      }
+
+      if (got < expectedTotal) {
+        Serial.printf("[FILE] incomplete (%d/%d) - waiting for more chunks\n", got, expectedTotal);
+        file = root.openNextFile();
+        continue; // wait until all chunks arrived
+      }
+
+      // All chunks present - decode and write to a temp binary file
+      // extract fileId from filename: /incoming_<fileId>.b64
+      int u1 = name.indexOf('_');
+      int u2 = name.lastIndexOf('.');
+      String fileId = "unknown";
+      if (u1 > 0 && u2 > u1) fileId = name.substring(u1 + 1, u2);
+      String tmpPath = String("/upload_") + fileId + ".wav";
+
+      File out = SPIFFS.open(tmpPath, FILE_WRITE);
+      if (!out) {
+        Serial.println("[FILE] Failed to open " + tmpPath + " for write");
+        file = root.openNextFile();
+        continue;
+      }
+
+      for (int i = 0; i < expectedTotal; ++i) {
+        String &b64 = seqMap[i];
+        size_t slen = b64.length();
+        if (slen == 0) continue; // should not happen
+        size_t dlen = (slen / 4) * 3 + 3;
+        unsigned char* dbuf = (unsigned char*)malloc(dlen);
+        if (!dbuf) {
+          Serial.println("[FILE] malloc failed for base64 decode");
+          out.close();
+          SPIFFS.remove(tmpPath);
+          break;
+        }
+        size_t olen = 0;
+        int rc = mbedtls_base64_decode(dbuf, dlen, &olen, (const unsigned char*)b64.c_str(), slen);
+        if (rc == 0 && olen > 0) {
+          out.write(dbuf, olen);
+        } else {
+          Serial.printf("[FILE] base64 decode failed rc=%d\n", rc);
+        }
+        free(dbuf);
+      }
+      out.close();
+
+      // Attempt upload
+      bool ok = uploadFileToServer(tmpPath, fileId);
+      if (ok) {
+        // cleanup incoming and temp files
+        Serial.println("[FILE] upload OK, cleaning up");
+        SPIFFS.remove(name);
+        SPIFFS.remove(tmpPath);
+      } else {
+        Serial.println("[FILE] upload failed, keeping files for retry");
+      }
+    }
+
+    file = root.openNextFile();
+  }
+}
+
+bool uploadFileToServer(const String &localPath, const String &fileId) {
+  Serial.println("[UPLOAD] Starting upload for " + localPath);
+  File f = SPIFFS.open(localPath, FILE_READ);
+  if (!f) {
+    Serial.println("[UPLOAD] failed to open file");
+    return false;
+  }
+
+  size_t fileSize = f.size();
+  String boundary = "----EcoSentryBoundary7";
+  String pre = "--" + boundary + "\r\n";
+   // use field name 'file' to match the Flask endpoint which expects 'file' in request.files
+   pre += "Content-Disposition: form-data; name=\"file\"; filename=\"" + fileId + ".wav\"\r\n";
+  pre += "Content-Type: audio/wav\r\n\r\n";
+  String post = "\r\n--" + boundary + "\r\n";
+  post += "Content-Disposition: form-data; name=\"device\"\r\n\r\n" + receiverID + "\r\n";
+  post += "--" + boundary + "--\r\n";
+
+  size_t contentLength = pre.length() + fileSize + post.length();
+
+  WiFiClient client;
+  if (!client.connect(uploadHost, uploadPort)) {
+    Serial.println("[UPLOAD] Failed to connect to server");
+    f.close();
+    return false;
+  }
+
+  // Send HTTP request headers
+  client.print(String("POST ") + uploadPath + " HTTP/1.1\r\n");
+  client.print(String("Host: ") + uploadHost + ":" + uploadPort + "\r\n");
+  client.print(String("Content-Type: multipart/form-data; boundary=") + boundary + "\r\n");
+  client.print(String("Content-Length: ") + contentLength + "\r\n");
+  client.print("Connection: close\r\n\r\n");
+
+  // Send preamble
+  client.print(pre);
+
+  // Stream file bytes
+  const size_t BUF_SZ = 1024;
+  uint8_t buf[BUF_SZ];
+  while (f.available()) {
+    size_t r = f.read(buf, BUF_SZ);
+    if (r > 0) client.write(buf, r);
+    else break;
+  }
+  f.close();
+
+  // Send postamble
+  client.print(post);
+
+  // Wait for server response (simple read)
+  unsigned long timeout = millis() + 10000;
+  while (client.connected() && millis() < timeout) {
+    while (client.available()) {
+      String line = client.readStringUntil('\n');
+      line.trim();
+      Serial.println("[UPLOAD] <- " + line);
+      // quick success detection
+      if (line.startsWith("HTTP/1.1 200") || line.startsWith("HTTP/1.0 200")) {
+        // drain remainder
+        while (client.available()) client.read();
+        client.stop();
+        return true;
+      }
+    }
+  }
+
+  client.stop();
+  Serial.println("[UPLOAD] No successful HTTP response");
+  return false;
 }
 
 // ------------------- DISPLAY -------------------
@@ -172,7 +392,28 @@ void handleLoRaPackets(unsigned long currentTime) {
     rxState.packetCount++;
     String received = readLoRaPacket(packetSize);
 
-    if (processReceivedPacket(received, currentTime)) {
+    // If this is a file chunk forwarded raw, handle specially
+    if (received.startsWith("FILE|") || received.startsWith("FILE_END|")) {
+      Serial.println("📥 Received FILE packet");
+      // Save raw chunk line to SPIFFS for later assembly
+      // Format: FILE|<fileId>|<seq>|<total>|<b64_chunk>
+      int firstSep = received.indexOf('|');
+      int secondSep = received.indexOf('|', firstSep + 1);
+      String fileId = "unknown";
+      if (secondSep > firstSep) {
+        fileId = received.substring(firstSep + 1, secondSep);
+      }
+      String path = "/incoming_" + fileId + ".b64";
+      File f = SPIFFS.open(path, FILE_APPEND);
+      if (f) {
+        f.println(received);
+        f.close();
+        Serial.println("🗄️ Appended chunk to " + path);
+      } else {
+        Serial.println("❌ Failed to open " + path + " for append");
+      }
+      rxState.validPackets++;
+    } else if (processReceivedPacket(received, currentTime)) {
       rxState.validPackets++;
       printPacketInfo(received, currentTime);
     } else {

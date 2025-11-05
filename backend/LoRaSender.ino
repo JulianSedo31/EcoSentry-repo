@@ -262,7 +262,13 @@ void handleSerialInput(unsigned long currentTime) {
       Serial.println("📥 Input Received → " + input);
       
       // Check if this is a GPS alert message
-      if (input.startsWith("ALERT,CHAINSAW,")) {
+      if (input.startsWith("FILE|") || input.startsWith("FILE_END|")) {
+        // Raw file chunk/marker — forward as-is over LoRa (do not wrap with PKT#...)
+        Serial.println("📤 Forwarding FILE packet over LoRa (raw)");
+        LoRa.beginPacket();
+        LoRa.print(input);
+        LoRa.endPacket();
+      } else if (input.startsWith("ALERT,CHAINSAW,")) {
         Serial.println("🚨 GPS Alert detected - sending immediately");
         sendPacket(input, currentTime);
       } else {

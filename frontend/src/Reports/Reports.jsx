@@ -19,6 +19,7 @@ import {
 import {
   PictureAsPdf as PdfIcon,
   Archive as ArchiveIcon,
+  PlayArrow as PlayIcon,
 } from "@mui/icons-material";
 // COMPONENTS
 import DetectionAlert from "../components/DetectionAlert";
@@ -67,28 +68,32 @@ function Reports() {
   // Function to parse detection message and remove prefix
   const parseDetectionMessage = (msg) => {
     if (!msg) return { cleanMessage: "", coordinates: null };
-    
+
     // Remove PKT#xxx|DeviceName| prefix
-    const parts = msg.split('|');
+    const parts = msg.split("|");
     let cleanMessage = msg;
     let coordinates = null;
-    
+
     if (parts.length >= 3) {
       // Extract the actual message after the second |
-      cleanMessage = parts.slice(2).join('|');
-      
+      cleanMessage = parts.slice(2).join("|");
+
       // Parse GPS coordinates from ALERT,CHAINSAW,lat,lon format
-      if (cleanMessage.startsWith('ALERT,CHAINSAW,')) {
-        const coords = cleanMessage.split(',');
-        if (coords.length >= 4 && coords[2] !== 'NOFIX' && coords[3] !== 'NOFIX') {
+      if (cleanMessage.startsWith("ALERT,CHAINSAW,")) {
+        const coords = cleanMessage.split(",");
+        if (
+          coords.length >= 4 &&
+          coords[2] !== "NOFIX" &&
+          coords[3] !== "NOFIX"
+        ) {
           coordinates = {
             latitude: parseFloat(coords[2]),
-            longitude: parseFloat(coords[3])
+            longitude: parseFloat(coords[3]),
           };
         }
       }
     }
-    
+
     return { cleanMessage, coordinates };
   };
 
@@ -124,7 +129,7 @@ function Reports() {
     const fetchDetections = async () => {
       try {
         const response = await fetch(
-          "http://localhost:5000/api/detection?includeArchived=false"
+          "http://192.168.1.237:5000/api/detection?includeArchived=false"
         );
         const data = await response.json();
         setDetections(data);
@@ -184,6 +189,72 @@ function Reports() {
         }
       }
     });
+  };
+
+  // Play audio for a detection by id
+  const handlePlayAudio = async (id) => {
+    try {
+      // First, find the detection to confirm it has a file_id
+      const det = detections.find((d) => d._id === id);
+      if (!det || !det.file_id) {
+        Swal.fire({
+          icon: "info",
+          title: "No audio",
+          text: "There is no audio file attached to this detection.",
+        });
+        return;
+      }
+
+      const url = `http://192.168.1.237:5000/api/detection/audio/${id}`;
+      console.log("[Audio] fetching", url);
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => "<no body>");
+        console.error("Audio fetch failed", response.status, text);
+        Swal.fire({
+          icon: "error",
+          title: "Playback failed",
+          text: `Unable to fetch audio (HTTP ${response.status}): ${text}`,
+        });
+        return;
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio();
+      audio.src = audioUrl;
+      audio.controls = true;
+      audio.autoplay = true;
+
+      // Play and handle playback errors (autoplay, format)
+      try {
+        await audio.play();
+      } catch (playErr) {
+        console.error("Audio play error:", playErr);
+        Swal.fire({
+          icon: "error",
+          title: "Playback failed",
+          text: `Playback error: ${playErr.message || playErr}`,
+        });
+      }
+
+      // Revoke object URL after playback ends to free memory
+      audio.addEventListener("ended", () => {
+        URL.revokeObjectURL(audioUrl);
+      });
+      // Also revoke on error
+      audio.addEventListener("error", () => {
+        URL.revokeObjectURL(audioUrl);
+      });
+    } catch (error) {
+      console.error("Error playing audio:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Playback failed",
+        text: "Unable to play audio for this detection.",
+      });
+    }
   };
 
   // Handle search (remove sa nako kay murag dili na needed )
@@ -266,63 +337,63 @@ function Reports() {
       doc.setFontSize(11);
       doc.text(`Total Detections: ${filteredData.length}`, 20, 75);
 
-          // TABLE DATA
-          // Use explicit latitude/longitude if present on the detection object,
-          // otherwise try to parse coordinates from the detection message.
-          const tableData = filteredData.map((detection) => {
-            const parsed = parseDetectionMessage(detection.detection || "");
-            const lat =
-              detection.latitude != null
-                ? detection.latitude
-                : parsed.coordinates
-                ? parsed.coordinates.latitude
-                : null;
-            const lon =
-              detection.longitude != null
-                ? detection.longitude
-                : parsed.coordinates
-                ? parsed.coordinates.longitude
-                : null;
+      // TABLE DATA
+      // Use explicit latitude/longitude if present on the detection object,
+      // otherwise try to parse coordinates from the detection message.
+      const tableData = filteredData.map((detection) => {
+        const parsed = parseDetectionMessage(detection.detection || "");
+        const lat =
+          detection.latitude != null
+            ? detection.latitude
+            : parsed.coordinates
+            ? parsed.coordinates.latitude
+            : null;
+        const lon =
+          detection.longitude != null
+            ? detection.longitude
+            : parsed.coordinates
+            ? parsed.coordinates.longitude
+            : null;
 
-            return [
-              detection.device || "N/A",
-              lat != null ? lat.toFixed(8) : "N/A",
-              lon != null ? lon.toFixed(8) : "N/A",
-              new Date(detection.timestamp).toLocaleString(),
-              detection.detection,
-            ];
-          });
+        return [
+          detection.device || "N/A",
+          lat != null ? lat.toFixed(8) : "N/A",
+          lon != null ? lon.toFixed(8) : "N/A",
+          new Date(detection.timestamp).toLocaleString(),
+          detection.detection,
+        ];
+      });
 
-          autoTable(doc, {
-            startY: 80,
-            head: [["Device", "Latitude", "Longitude", "Timestamp", "Detection"]],
-            body: tableData,
-            theme: "grid",
-            headStyles: {
-              fillColor: [34, 139, 34], // Forest green
-              textColor: 255,
-              fontStyle: "bold",
-              fontSize: 10,
-              halign: "center",
-            },
-            styles: {
-              fontSize: 9,
-              cellPadding: 4,
-              overflow: "linebreak",
-              halign: "left",
-            },
-            columnStyles: {
-              0: { cellWidth: 30, halign: "center" },
-              1: { cellWidth: 35, halign: "center" },
-              2: { cellWidth: 35, halign: "center" },
-              3: { cellWidth: 50, halign: "center" },
-              4: { cellWidth: 55, halign: "center" },
-            },
-            margin: { top: 20, bottom: 50 },
-            alternateRowStyles: {
-              fillColor: [248, 249, 250],
-            },
-          });
+      autoTable(doc, {
+        startY: 80,
+        head: [["Device", "Latitude", "Longitude", "Timestamp", "Detection"]],
+        body: tableData,
+        theme: "grid",
+        headStyles: {
+          fillColor: [34, 139, 34], // Forest green
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 10,
+          halign: "center",
+        },
+        styles: {
+          fontSize: 9,
+          cellPadding: 4,
+          overflow: "linebreak",
+          halign: "left",
+        },
+        columnStyles: {
+          0: { cellWidth: 30, halign: "center" },
+          1: { cellWidth: 35, halign: "center" },
+          2: { cellWidth: 35, halign: "center" },
+          3: { cellWidth: 50, halign: "center" },
+          4: { cellWidth: 55, halign: "center" },
+        },
+        margin: { top: 20, bottom: 50 },
+        alternateRowStyles: {
+          fillColor: [248, 249, 250],
+        },
+      });
 
       // FOOTER / SIGNATURE BLOCK
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -663,17 +734,22 @@ function Reports() {
         return (
           <div
             style={{
-              color: cleanMessage.includes("Chainsaw Detected") || cleanMessage.includes("ALERT,CHAINSAW")
-                ? "#000000"
-                : "#000000",
+              color:
+                cleanMessage.includes("Chainsaw Detected") ||
+                cleanMessage.includes("ALERT,CHAINSAW")
+                  ? "#000000"
+                  : "#000000",
               fontWeight: "500",
               fontSize: "0.875rem",
             }}
           >
             {displayMessage}
             {coordinates && (
-              <div style={{ fontSize: "0.75rem", color: "#666", marginTop: "4px" }}>
-                Lat: {coordinates.latitude.toFixed(8)}, Lon: {coordinates.longitude.toFixed(8)}
+              <div
+                style={{ fontSize: "0.75rem", color: "#666", marginTop: "4px" }}
+              >
+                Lat: {coordinates.latitude.toFixed(8)}, Lon:{" "}
+                {coordinates.longitude.toFixed(8)}
               </div>
             )}
           </div>
@@ -696,6 +772,22 @@ function Reports() {
             gap: "8px",
           }}
         >
+          <IconButton
+            onClick={() => handlePlayAudio(params.row._id)}
+            disabled={!params.row.file_id}
+            color="27323a"
+            size="small"
+            sx={{
+              "&:hover": {
+                backgroundColor: "rgba(0, 0, 0, 0.04)",
+                transform: "scale(1.05)",
+              },
+              transition: "all 0.12s ease-in-out",
+            }}
+          >
+            <PlayIcon />
+          </IconButton>
+
           <IconButton
             onClick={() => handleArchiveClick(params.row._id)}
             color="27323a"
