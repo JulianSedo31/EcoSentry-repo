@@ -57,6 +57,12 @@ ChartJS.register(
 );
 
 function Reports() {
+  // API base URL: prefer Vite env var VITE_API_BASE, otherwise fall back to current host with port 5000
+  // Create a .env file in the frontend root with VITE_API_BASE=http://192.168.1.237:5000 (for example)
+  const API_BASE =
+    import.meta.env.VITE_API_BASE ||
+    `${window.location.protocol}//${window.location.hostname}:5000`;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [detections, setDetections] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -128,9 +134,7 @@ function Reports() {
   useEffect(() => {
     const fetchDetections = async () => {
       try {
-        const response = await fetch(
-          "http://192.168.1.237:5000/api/detection?includeArchived=false"
-        );
+        const response = await fetch(`/api/detection?includeArchived=false`);
         const data = await response.json();
         setDetections(data);
         setFilteredData(data);
@@ -157,14 +161,11 @@ function Reports() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const response = await fetch(
-            `http://localhost:5000/api/detection/${id}/archive`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ archivedBy: "User" }),
-            }
-          );
+          const response = await fetch(`/api/detection/${id}/archive`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ archivedBy: "User" }),
+          });
 
           if (!response.ok) {
             const errorData = await response.json();
@@ -205,7 +206,7 @@ function Reports() {
         return;
       }
 
-      const url = `http://192.168.1.237:5000/api/detection/audio/${id}`;
+      const url = `/api/detection/audio/${id}`;
       console.log("[Audio] fetching", url);
       const response = await fetch(url);
 
