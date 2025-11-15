@@ -130,22 +130,41 @@ function Reports() {
     setFilteredData(filtered);
   }, [detections, selectedMonth, selectedYear, selectedDevice]);
 
-  // Fetch detections from the backend
-  useEffect(() => {
-    const fetchDetections = async () => {
-      try {
-        const response = await fetch(`/api/detection?includeArchived=false`);
-        const data = await response.json();
-        setDetections(data);
-        setFilteredData(data);
-      } catch (error) {
-        console.error("Error fetching detections:", error);
-      } finally {
-        setLoading(false);
+  // Function to fetch detections from the backend (reusable)
+  const fetchDetections = async () => {
+    try {
+      const response = await fetch(`/api/detection?includeArchived=false`);
+      if (!response.ok) {
+        // Log and bail — keep the previous data if fetch fails
+        const text = await response.text().catch(() => "<no body>");
+        throw new Error(`Fetch failed: ${response.status} ${text}`);
       }
-    };
+      const data = await response.json();
+      setDetections(data);
+      setFilteredData(data);
+    } catch (error) {
+      console.error("Error fetching detections:", error);
+    } finally {
+      // Hide initial loading spinner after first attempt
+      setLoading(false);
+    }
+  };
 
+  // Auto-refresh: initial fetch + polling interval to refresh detections
+  useEffect(() => {
+    // Initial fetch
     fetchDetections();
+
+    // Polling interval (ms) — change this value to poll faster/slower.
+    const POLL_INTERVAL_MS = 5000; // 5 seconds
+    const intervalId = setInterval(() => {
+      fetchDetections();
+    }, POLL_INTERVAL_MS);
+
+    // Cleanup on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   // Handle archive click
