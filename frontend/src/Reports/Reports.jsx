@@ -56,6 +56,35 @@ ChartJS.register(
   Legend
 );
 
+// Plugin to draw values above bars (used for device counts)
+const barValuePlugin = {
+  id: "barValuePlugin",
+  afterDatasetsDraw(chart, args, pluginOptions) {
+    const { ctx, data, chartArea } = chart;
+    chart.data.datasets.forEach((dataset, i) => {
+      const meta = chart.getDatasetMeta(i);
+      if (!meta || !meta.data) return;
+      meta.data.forEach((bar, index) => {
+        const value = dataset.data[index];
+        if (value == null) return;
+        ctx.save();
+        const opts = pluginOptions || {};
+        ctx.fillStyle = opts.color || "#000";
+        const font = opts.font || "12px Arial";
+        ctx.font = font;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        const x = bar.x;
+        const y = bar.y - 6;
+        ctx.fillText(String(value), x, y);
+        ctx.restore();
+      });
+    });
+  },
+};
+
+ChartJS.register(barValuePlugin);
+
 function Reports() {
   // API base URL: prefer Vite env var VITE_API_BASE, otherwise fall back to current host with port 5000
   // Create a .env file in the frontend root with VITE_API_BASE=http://192.168.1.237:5000 (for example)
@@ -297,23 +326,34 @@ function Reports() {
   // Export functions
   const exportToPDF = () => {
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
+      // Create PDF with A4 size (210mm x 297mm)
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+      const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+      const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
+      const margin = 10; // 10mm margins on all sides for more space
+      const usableWidth = pageWidth - 2 * margin; // 190mm usable width
 
-      // HEADER
-      const logoWidth = 25;
-      const logoHeight = 25;
+      // HEADER - Compact design
+      const logoWidth = 18;
+      const logoHeight = 18;
       const orgName = "Provincial Environment and Natural Resources Office";
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14); // Smaller but clean org name
+      doc.setFontSize(11);
+
+      // Check if org name fits, if not, split it
       const orgNameWidth = doc.getTextWidth(orgName);
+      const spacing = 4;
+      const totalHeaderWidth = logoWidth + spacing + orgNameWidth;
 
-      const spacing = 6;
-      const totalWidth = logoWidth + spacing + orgNameWidth;
-      const headerX = (pageWidth - totalWidth) / 2;
-      const headerY = 30;
+      let headerX = margin;
+      let headerY = 15;
 
+      // Add logo
       doc.addImage(
         penroLogo,
         "PNG",
@@ -322,12 +362,34 @@ function Reports() {
         logoWidth,
         logoHeight
       );
-      doc.text(orgName, headerX + logoWidth + spacing, headerY);
+
+      // Add organization name
+      if (totalHeaderWidth <= usableWidth) {
+        doc.text(orgName, headerX + logoWidth + spacing, headerY);
+      } else {
+        // Split text if too long
+        const words = orgName.split(" ");
+        let line = "";
+        let yPos = headerY;
+        for (let i = 0; i < words.length; i++) {
+          const testLine = line + words[i] + " ";
+          const testWidth = doc.getTextWidth(testLine);
+          if (testWidth > usableWidth - logoWidth - spacing && i > 0) {
+            doc.text(line, headerX + logoWidth + spacing, yPos);
+            line = words[i] + " ";
+            yPos += 5;
+          } else {
+            line = testLine;
+          }
+        }
+        doc.text(line, headerX + logoWidth + spacing, yPos);
+        headerY = yPos + 5;
+      }
 
       // REPORT TITLE
-      doc.setFontSize(15);
+      doc.setFontSize(13);
       doc.setTextColor(40);
-      doc.text("Chainsaw Detection Report", pageWidth / 2, 50, {
+      doc.text("Chainsaw Detection Report", pageWidth / 2, headerY + 8, {
         align: "center",
       });
 
@@ -348,14 +410,18 @@ function Reports() {
       ];
       const dateRange = `${monthNames[selectedMonth]} ${selectedYear}`;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(12);
-      doc.text(`Monthly Report – ${dateRange}`, pageWidth / 2, 60, {
+      doc.setFontSize(10);
+      doc.text(`Monthly Report – ${dateRange}`, pageWidth / 2, headerY + 14, {
         align: "center",
       });
 
       // SUMMARY STATS
-      doc.setFontSize(11);
-      doc.text(`Total Detections: ${filteredData.length}`, 20, 75);
+      doc.setFontSize(9);
+      doc.text(
+        `Total Detections: ${filteredData.length}`,
+        margin,
+        headerY + 20
+      );
 
       // TABLE DATA
       // Use explicit latitude/longitude if present on the detection object,
@@ -375,17 +441,70 @@ function Reports() {
             ? parsed.coordinates.longitude
             : null;
 
+        // Format timestamp to be more compact
+        const timestamp = new Date(detection.timestamp);
+        const formattedDate = timestamp.toLocaleDateString("en-US", {
+          month: "short",
+          day: "2-digit",
+          year: "numeric",
+        });
+        const formattedTime = timestamp.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        // Clean detection message (remove prefix if present)
+        // Keep full message - table will handle wrapping
+        const { cleanMessage } = parseDetectionMessage(
+          detection.detection || ""
+        );
+
+        // Ensure the message is properly formatted for PDF
+        // Replace any problematic characters and ensure proper spacing
+        const formattedMessage = cleanMessage
+          .replace(/\s+/g, " ") // Normalize whitespace
+          .trim();
+
         return [
           detection.device || "N/A",
-          lat != null ? lat.toFixed(8) : "N/A",
-          lon != null ? lon.toFixed(8) : "N/A",
-          new Date(detection.timestamp).toLocaleString(),
-          detection.detection,
+          lat != null ? lat.toFixed(6) : "N/A",
+          lon != null ? lon.toFixed(6) : "N/A",
+          `${formattedDate}\n${formattedTime}`,
+          formattedMessage, // Full message - will wrap automatically in table
         ];
       });
 
+      // Calculate optimal column widths based on content and available space
+      // Total usable width: ~190mm (with 10mm margins)
+      // Use flexible widths that adapt to content and maximize space usage
+      const fixedColumnsWidth = 28 + 30 + 30 + 32; // Device + Lat + Lon + Timestamp = 120mm
+      const detectionColumnWidth = usableWidth - fixedColumnsWidth; // Remaining space for Detection (~70mm)
+
+      const columnWidths = {
+        0: 28, // Device
+        1: 30, // Latitude
+        2: 30, // Longitude
+        3: 32, // Timestamp
+        4: Math.max(detectionColumnWidth, 70), // Detection (uses all remaining space, minimum 70mm)
+      };
+
+      // Verify total width matches usable width
+      const totalCalculated = Object.values(columnWidths).reduce(
+        (a, b) => a + b,
+        0
+      );
+      if (Math.abs(totalCalculated - usableWidth) > 1) {
+        // Adjust detection column to fill exactly
+        columnWidths[4] =
+          usableWidth -
+          (columnWidths[0] +
+            columnWidths[1] +
+            columnWidths[2] +
+            columnWidths[3]);
+      }
+
       autoTable(doc, {
-        startY: 80,
+        startY: headerY + 23,
         head: [["Device", "Latitude", "Longitude", "Timestamp", "Detection"]],
         body: tableData,
         theme: "grid",
@@ -393,57 +512,168 @@ function Reports() {
           fillColor: [34, 139, 34], // Forest green
           textColor: 255,
           fontStyle: "bold",
-          fontSize: 10,
+          fontSize: 9,
           halign: "center",
+          cellPadding: 3,
         },
         styles: {
-          fontSize: 9,
-          cellPadding: 4,
-          overflow: "linebreak",
+          fontSize: 8,
+          cellPadding: 4, // Slightly more padding for better readability
+          overflow: "linebreak", // Allow text to wrap and expand cell height automatically
           halign: "left",
+          valign: "top", // Top align for better readability with wrapped text
+          lineWidth: 0.1,
+          lineColor: [200, 200, 200],
+          textColor: [0, 0, 0],
         },
         columnStyles: {
-          0: { cellWidth: 30, halign: "center" },
-          1: { cellWidth: 35, halign: "center" },
-          2: { cellWidth: 35, halign: "center" },
-          3: { cellWidth: 50, halign: "center" },
-          4: { cellWidth: 55, halign: "center" },
+          0: {
+            cellWidth: columnWidths[0],
+            halign: "center",
+            valign: "middle",
+          },
+          1: {
+            cellWidth: columnWidths[1],
+            halign: "center",
+            valign: "middle",
+          },
+          2: {
+            cellWidth: columnWidths[2],
+            halign: "center",
+            valign: "middle",
+          },
+          3: {
+            cellWidth: columnWidths[3],
+            halign: "center",
+            valign: "middle",
+          },
+          4: {
+            cellWidth: columnWidths[4],
+            halign: "left",
+            valign: "top",
+            cellPadding: { top: 4, right: 3, bottom: 4, left: 3 },
+            overflow: "linebreak", // Explicitly allow wrapping - cell will expand vertically
+            // Detection column uses remaining space and wraps text
+            // Row height will automatically expand to accommodate all text
+          },
         },
-        margin: { top: 20, bottom: 50 },
+        margin: {
+          top: headerY + 23,
+          left: margin,
+          right: margin,
+          bottom: 35, // Reduced bottom margin for more table space
+        },
         alternateRowStyles: {
           fillColor: [248, 249, 250],
         },
+        showHead: "everyPage",
+        tableWidth: usableWidth, // Use full available width
+        pageBreak: "auto",
+        rowPageBreak: "avoid", // Don't break rows across pages
+        // Allow rows to expand vertically for long content
+        didDrawCell: function (data) {
+          // This ensures cells can expand to accommodate content
+          if (data.row.index >= 0 && data.column.index === 4) {
+            // For detection column, ensure proper text rendering
+            // The cell will automatically expand vertically
+          }
+        },
+        didDrawPage: function (data) {
+          // Add page numbers
+          doc.setFontSize(8);
+          doc.setTextColor(100);
+          doc.text(`Page ${data.pageNumber}`, pageWidth / 2, pageHeight - 5, {
+            align: "center",
+          });
+        },
+        // Handle cell content that's too long - ensure proper wrapping and row expansion
+        didParseCell: function (data) {
+          // Ensure detection column text wraps properly for long content
+          if (data.column.index === 4) {
+            // Detection column - ensure text wraps and row expands vertically
+            data.cell.styles.overflow = "linebreak";
+            data.cell.styles.halign = "left";
+            data.cell.styles.valign = "top";
+
+            // For long text, ensure proper formatting
+            if (data.cell.text) {
+              const text = String(data.cell.text);
+              // Ensure text is clean and ready for wrapping
+              // autoTable will automatically expand the row height to fit all wrapped text
+              data.cell.text = text.trim();
+
+              // For very long messages, the cell will expand vertically
+              // The row height will grow to accommodate all the text
+              // This happens automatically with overflow: "linebreak"
+            }
+          }
+        },
       });
 
-      // FOOTER / SIGNATURE BLOCK
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const adminName = "Thomas L. Cardente II, Ph.D.";
-      const adminTitle = "PENRO OFFICER";
+      // FOOTER / SIGNATURE BLOCK on last page
+      const finalY = doc.lastAutoTable.finalY || pageHeight - 40;
+      const remainingSpace = pageHeight - finalY;
 
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.setFont("helvetica", "normal");
+      // Only add footer if there's enough space (at least 25mm)
+      if (remainingSpace >= 25) {
+        const adminName = "Thomas L. Cardente II, Ph.D.";
+        const adminTitle = "PENRO OFFICER";
 
-      const adminNameWidth = doc.getTextWidth(adminName);
-      const adminTitleWidth = doc.getTextWidth(adminTitle);
-      const lineWidth = Math.max(adminNameWidth, adminTitleWidth) + 20;
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.setFont("helvetica", "normal");
 
-      const lineXStart = (pageWidth - lineWidth) / 2;
-      const lineXEnd = lineXStart + lineWidth;
-      const footerStartY = pageHeight - 35;
+        const adminNameWidth = doc.getTextWidth(adminName);
+        const adminTitleWidth = doc.getTextWidth(adminTitle);
+        const lineWidth = Math.max(adminNameWidth, adminTitleWidth) + 15;
 
-      // Admin name ABOVE the line
-      doc.text(adminName, pageWidth / 2, footerStartY - 3, {
-        align: "center",
-      });
+        const lineXStart = (pageWidth - lineWidth) / 2;
+        const lineXEnd = lineXStart + lineWidth;
+        const footerStartY = finalY + 10;
 
-      // Signature line
-      doc.line(lineXStart, footerStartY, lineXEnd, footerStartY);
+        // Admin name ABOVE the line
+        doc.text(adminName, pageWidth / 2, footerStartY - 2, {
+          align: "center",
+        });
 
-      // Admin title BELOW the line
-      doc.text(adminTitle, pageWidth / 2, footerStartY + 6, {
-        align: "center",
-      });
+        // Signature line
+        doc.line(lineXStart, footerStartY, lineXEnd, footerStartY);
+
+        // Admin title BELOW the line
+        doc.text(adminTitle, pageWidth / 2, footerStartY + 5, {
+          align: "center",
+        });
+      } else {
+        // Add footer on new page if not enough space
+        doc.addPage();
+        const adminName = "Thomas L. Cardente II, Ph.D.";
+        const adminTitle = "PENRO OFFICER";
+
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.setFont("helvetica", "normal");
+
+        const adminNameWidth = doc.getTextWidth(adminName);
+        const adminTitleWidth = doc.getTextWidth(adminTitle);
+        const lineWidth = Math.max(adminNameWidth, adminTitleWidth) + 15;
+
+        const lineXStart = (pageWidth - lineWidth) / 2;
+        const lineXEnd = lineXStart + lineWidth;
+        const footerStartY = pageHeight / 2;
+
+        // Admin name ABOVE the line
+        doc.text(adminName, pageWidth / 2, footerStartY - 2, {
+          align: "center",
+        });
+
+        // Signature line
+        doc.line(lineXStart, footerStartY, lineXEnd, footerStartY);
+
+        // Admin title BELOW the line
+        doc.text(adminTitle, pageWidth / 2, footerStartY + 5, {
+          align: "center",
+        });
+      }
 
       // SAVE FILE
       const fileName = `chainsaw_detection_report_${dateRange.replace(
@@ -453,7 +683,11 @@ function Reports() {
       doc.save(fileName);
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Error generating PDF. Please try again.");
+      Swal.fire({
+        icon: "error",
+        title: "PDF Generation Failed",
+        text: "Error generating PDF. Please try again.",
+      });
     }
   };
 
@@ -578,27 +812,68 @@ function Reports() {
   const prepareLineChartData = () => {
     const yearlyTotals = {};
 
+    // Count detections by year with robust date parsing
     detections.forEach((d) => {
-      const year = new Date(d.timestamp).getFullYear();
-      if (d.detection.includes("Chainsaw")) {
-        yearlyTotals[year] = (yearlyTotals[year] || 0) + 1;
+      if (!d || !d.timestamp) return;
+
+      try {
+        const date = new Date(d.timestamp);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          console.warn("Invalid timestamp:", d.timestamp);
+          return;
+        }
+
+        const year = date.getFullYear();
+        // Check if detection message exists and contains "Chainsaw"
+        if (
+          d.detection &&
+          typeof d.detection === "string" &&
+          d.detection.toLowerCase().includes("chainsaw")
+        ) {
+          yearlyTotals[year] = (yearlyTotals[year] || 0) + 1;
+        }
+      } catch (error) {
+        console.warn("Error parsing timestamp:", d.timestamp, error);
       }
     });
 
-    const years = Object.keys(yearlyTotals).sort();
-    const dataPoints = years.map((year) => yearlyTotals[year]);
+    // Find the earliest year and current year
+    const allYears = Object.keys(yearlyTotals)
+      .map(Number)
+      .filter((y) => !isNaN(y));
+    const currentYear = new Date().getFullYear();
+    const earliestYear =
+      allYears.length > 0 ? Math.min(...allYears) : currentYear;
+
+    // Create array of all years from earliest to current (inclusive)
+    const completeYears = [];
+    for (let year = earliestYear; year <= currentYear; year++) {
+      completeYears.push(year);
+    }
+
+    // Map data points for all years (fill with 0 if no data)
+    const dataPoints = completeYears.map((year) => yearlyTotals[year] || 0);
+    const yearLabels = completeYears.map((year) => year.toString());
 
     return {
-      labels: years,
+      labels: yearLabels,
       datasets: [
         {
           label: "Total Detections",
           data: dataPoints,
           borderColor: "#75CFB8",
           backgroundColor: "rgba(117, 207, 184, 0.3)",
-          fill: true,
+          fill: false,
           tension: 0.4,
           pointBackgroundColor: "#75CFB8",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          pointHoverBackgroundColor: "#66BB6A",
+          borderWidth: 2,
+          spanGaps: false,
         },
       ],
     };
@@ -667,6 +942,70 @@ function Reports() {
         },
       },
     },
+  };
+
+  // Prepare device counts chart data
+  const prepareDeviceChartData = () => {
+    const counts = {};
+    detections.forEach((d) => {
+      if (!d || !d.detection) return;
+      if (
+        typeof d.detection === "string" &&
+        d.detection.toLowerCase().includes("chainsaw")
+      ) {
+        const device = d.device || "Unknown";
+        counts[device] = (counts[device] || 0) + 1;
+      }
+    });
+
+    const labels = Object.keys(counts);
+    const data = labels.map((l) => counts[l]);
+
+    // Simple color generator per device
+    const colors = labels.map((_, i) => `hsl(${(i * 47) % 360} 70% 45%)`);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Detections",
+          data,
+          backgroundColor: colors,
+          borderColor: colors,
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
+
+  // Prepare hourly chart data (0-23)
+  const prepareHourlyChartData = () => {
+    const hours = Array(24).fill(0);
+    detections.forEach((d) => {
+      if (!d || !d.timestamp || !d.detection) return;
+      if (
+        typeof d.detection === "string" &&
+        d.detection.toLowerCase().includes("chainsaw")
+      ) {
+        const date = new Date(d.timestamp);
+        if (isNaN(date.getTime())) return;
+        const h = date.getHours();
+        hours[h]++;
+      }
+    });
+
+    return {
+      labels: hours.map((_, i) => `${String(i).padStart(2, "0")}:00`),
+      datasets: [
+        {
+          label: "Detections",
+          data: hours,
+          backgroundColor: "rgba(117, 207, 184, 0.9)",
+          borderColor: "#75CFB8",
+          borderWidth: 1,
+        },
+      ],
+    };
   };
 
   // Column definitions
@@ -852,6 +1191,31 @@ function Reports() {
           <h3 className="chart-title">Total Chainsaw Detections per Year</h3>
           <div style={{ position: "relative", height: "90%", width: "100%" }}>
             <Line data={prepareLineChartData()} options={lineChartOptions} />
+          </div>
+        </div>
+        {/* DEVICE CHART */}
+        <div className="chart-box">
+          <h3 className="chart-title">Detections by Device</h3>
+          <div style={{ position: "relative", height: "90%", width: "100%" }}>
+            <Bar
+              data={prepareDeviceChartData()}
+              options={{
+                ...chartOptions,
+                plugins: {
+                  ...(chartOptions.plugins || {}),
+                  // Enable the barValuePlugin for this chart
+                  barValue: { color: "#000", font: "12px Arial" },
+                },
+              }}
+            />
+          </div>
+        </div>
+
+        {/* HOUR-OF-DAY CHART */}
+        <div className="chart-box">
+          <h3 className="chart-title">Detections by Hour of Day</h3>
+          <div style={{ position: "relative", height: "90%", width: "100%" }}>
+            <Bar data={prepareHourlyChartData()} options={chartOptions} />
           </div>
         </div>
       </div>
