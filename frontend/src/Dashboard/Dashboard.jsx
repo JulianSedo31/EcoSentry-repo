@@ -45,6 +45,33 @@ const alertIcon = new L.Icon({
 });
 
 function Dashboard() {
+  // Timezone used for server timestamps (displayed across the UI)
+  const DISPLAY_TZ = "Asia/Kuala_Lumpur";
+  // Normalize ISO timestamp strings that lack an explicit timezone offset
+  const normalizeISOWithTZ = (ts) => {
+    if (!ts) return ts;
+    if (typeof ts !== "string") return ts;
+    if (/[Zz]$/.test(ts) || /[+\-]\d{2}:\d{2}$/.test(ts)) return ts;
+    return ts + "+08:00";
+  };
+
+  const formatTimestamp = (timestamp) => {
+    try {
+      const normalized = normalizeISOWithTZ(timestamp);
+      const dt = normalized ? new Date(normalized) : new Date();
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: DISPLAY_TZ,
+        dateStyle: "medium",
+        timeStyle: "medium",
+        timeZoneName: "short",
+      }).format(dt);
+    } catch (e) {
+      const normalized = normalizeISOWithTZ(timestamp);
+      return normalized
+        ? new Date(normalized).toLocaleString()
+        : new Date().toLocaleString();
+    }
+  };
   // const [alerts, setAlerts] = useState([]); // no longer used after deduplicating markers
   const [alertOpen, setAlertOpen] = useState(false);
   const [latestDetection, setLatestDetection] = useState(null);
@@ -141,8 +168,8 @@ function Dashboard() {
           // If we haven't seen this device or this detection is newer, store it
           if (
             !markerByDevice[key] ||
-            new Date(detection.timestamp) >
-              new Date(markerByDevice[key].timestamp)
+            new Date(normalizeISOWithTZ(detection.timestamp)) >
+              new Date(normalizeISOWithTZ(markerByDevice[key].timestamp))
           ) {
             markerByDevice[key] = {
               id: detection._id,
@@ -197,7 +224,7 @@ function Dashboard() {
         // Check if there's a new alert that occurred after page load
         if (chainsawAlerts.length > 0) {
           const newestAlert = chainsawAlerts[0];
-          const alertTime = new Date(newestAlert.timestamp);
+          const alertTime = new Date(normalizeISOWithTZ(newestAlert.timestamp));
 
           // Check if the current latestDetection still exists in the fetched data
           const currentDetectionStillExists =
@@ -273,6 +300,7 @@ function Dashboard() {
         detectionId={latestDetection?._id}
         device={latestDetection?.device}
         location={latestDetection?.location}
+        timestamp={latestDetection?.timestamp}
         latitude={latestDetection?.latitude}
         longitude={latestDetection?.longitude}
       />
@@ -307,8 +335,7 @@ function Dashboard() {
                   <strong>Status:</strong> Real-time Monitoring
                 </p>
                 <p>
-                  <strong>Last Update:</strong>{" "}
-                  {new Date().toLocaleTimeString()}
+                  <strong>Last Update:</strong> {formatTimestamp()}
                 </p>
                 <p>
                   <strong>Pin Duration:</strong> 10 seconds
@@ -364,8 +391,7 @@ function Dashboard() {
                     <strong>Device:</strong> {marker.device}
                   </p>
                   <p>
-                    <strong>Time:</strong>{" "}
-                    {new Date(marker.timestamp).toLocaleString()}
+                    <strong>Time:</strong> {formatTimestamp(marker.timestamp)}
                   </p>
                   <p>
                     <strong>Latitude:</strong> {marker.position[0].toFixed(8)}

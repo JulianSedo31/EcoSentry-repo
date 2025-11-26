@@ -11,6 +11,38 @@ import WarningIcon from "@mui/icons-material/Warning";
 import securityAlarm from "../assets/security-alarm-80493.mp3";
 import "./style.css";
 
+// Timezone used across the UI for server timestamps
+const DISPLAY_TZ = "Asia/Kuala_Lumpur";
+
+// (formatTimestamp defined below after normalization)
+
+// Normalize ISO timestamp strings that lack an explicit timezone offset
+const normalizeISOWithTZ = (ts) => {
+  if (!ts) return ts;
+  if (typeof ts !== "string") return ts;
+  if (/[Zz]$/.test(ts) || /[+\-]\d{2}:\d{2}$/.test(ts)) return ts;
+  return ts + "+08:00";
+};
+
+// Helper: format a timestamp in DISPLAY_TZ with Intl options
+const formatTimestamp = (timestamp) => {
+  try {
+    const normalized = normalizeISOWithTZ(timestamp);
+    const dt = normalized ? new Date(normalized) : new Date();
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: DISPLAY_TZ,
+      dateStyle: "medium",
+      timeStyle: "medium",
+      timeZoneName: "short",
+    }).format(dt);
+  } catch (e) {
+    const normalized = normalizeISOWithTZ(timestamp);
+    return normalized
+      ? new Date(normalized).toLocaleString()
+      : new Date().toLocaleString();
+  }
+};
+
 const DetectionAlert = ({
   open,
   message,
@@ -20,41 +52,46 @@ const DetectionAlert = ({
   location,
   latitude: propLatitude,
   longitude: propLongitude,
+  timestamp: propTimestamp,
 }) => {
   const audioRef = useRef(null);
 
   // Function to parse detection message and remove prefix
   const parseDetectionMessage = (msg) => {
     if (!msg) return { cleanMessage: "", coordinates: null };
-    
+
     // Remove PKT#xxx|DeviceName| prefix
-    const parts = msg.split('|');
+    const parts = msg.split("|");
     let cleanMessage = msg;
     let coordinates = null;
-    
+
     if (parts.length >= 3) {
       // Extract the actual message after the second |
-      cleanMessage = parts.slice(2).join('|');
-      
+      cleanMessage = parts.slice(2).join("|");
+
       // Parse GPS coordinates from ALERT,CHAINSAW,lat,lon format
-      if (cleanMessage.startsWith('ALERT,CHAINSAW,')) {
-        const coords = cleanMessage.split(',');
-        if (coords.length >= 4 && coords[2] !== 'NOFIX' && coords[3] !== 'NOFIX') {
+      if (cleanMessage.startsWith("ALERT,CHAINSAW,")) {
+        const coords = cleanMessage.split(",");
+        if (
+          coords.length >= 4 &&
+          coords[2] !== "NOFIX" &&
+          coords[3] !== "NOFIX"
+        ) {
           coordinates = {
             latitude: parseFloat(coords[2]),
-            longitude: parseFloat(coords[3])
+            longitude: parseFloat(coords[3]),
           };
         }
       }
     }
-    
+
     return { cleanMessage, coordinates };
   };
 
   // Function to format the message with appropriate color
   const formatMessage = (msg) => {
     const { cleanMessage } = parseDetectionMessage(msg);
-    
+
     if (cleanMessage.includes("Chainsaw Detected")) {
       return "🔴 Chainsaw Detected";
     } else if (cleanMessage.includes("Possible Chainsaw")) {
@@ -141,7 +178,7 @@ const DetectionAlert = ({
           );
         })()}
         <Typography className="alert-time">
-          Time: {new Date().toLocaleString()}
+          Time: {formatTimestamp(propTimestamp)}
         </Typography>
       </DialogContent>
       <DialogActions className="alert-actions">

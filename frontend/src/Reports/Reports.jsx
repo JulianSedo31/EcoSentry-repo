@@ -96,6 +96,7 @@ function Reports() {
   const [detections, setDetections] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [serverTime, setServerTime] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedDevice, setSelectedDevice] = useState("all");
@@ -132,10 +133,71 @@ function Reports() {
     return { cleanMessage, coordinates };
   };
 
+  // Time zone to display dates in (server timezone)
+  const DISPLAY_TZ = "Asia/Kuala_Lumpur";
+
+  // Normalize ISO timestamp strings that lack an explicit timezone offset
+  // If the timestamp is a string and doesn't end with 'Z' or '+/-HH:MM',
+  // assume server timezone (UTC+08) and append '+08:00' so `new Date()`
+  // parses it correctly instead of treating it as local time.
+  const normalizeISOWithTZ = (ts) => {
+    if (!ts) return ts;
+    if (typeof ts !== "string") return ts;
+    // already has Z or offset
+    if (/[Zz]$/.test(ts) || /[+\-]\d{2}:\d{2}$/.test(ts)) return ts;
+    return ts + "+08:00";
+  };
+
+  // Helper: return date parts for a timestamp in DISPLAY_TZ
+  const tzDateParts = (timestamp) => {
+    const dt = new Date(normalizeISOWithTZ(timestamp));
+    const fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: DISPLAY_TZ,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(dt);
+    const find = (type) => {
+      const p = parts.find((x) => x.type === type);
+      return p ? parseInt(p.value, 10) : null;
+    };
+    return {
+      year: find("year"),
+      month: find("month") != null ? find("month") - 1 : null,
+      day: find("day"),
+      hour: find("hour"),
+      minute: find("minute"),
+    };
+  };
+
+  // Helper: format a timestamp in DISPLAY_TZ with Intl options
+  const formatInTZ = (timestamp, options) => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: DISPLAY_TZ,
+        ...options,
+      }).format(new Date(normalizeISOWithTZ(timestamp)));
+    } catch (e) {
+      const ts = normalizeISOWithTZ(timestamp);
+      return ts ? new Date(ts).toLocaleString() : new Date().toLocaleString();
+    }
+  };
+
   // Get unique years from detections
   const getUniqueYears = () => {
+    // Use server timezone for year extraction
     const years = new Set(
-      detections.map((d) => new Date(d.timestamp).getFullYear())
+      detections.map((d) => {
+        try {
+          return tzDateParts(d.timestamp).year;
+        } catch (e) {
+          return new Date(normalizeISOWithTZ(d.timestamp)).getFullYear();
+        }
+      })
     );
     return Array.from(years).sort((a, b) => b - a);
   };
@@ -149,9 +211,10 @@ function Reports() {
   // Filter detections by month, year, and device
   useEffect(() => {
     const filtered = detections.filter((detection) => {
-      const date = new Date(detection.timestamp);
-      const monthMatch = date.getMonth() === selectedMonth;
-      const yearMatch = date.getFullYear() === selectedYear;
+      // Use server timezone month/year for filtering
+      const parts = tzDateParts(detection.timestamp);
+      const monthMatch = parts.month === selectedMonth;
+      const yearMatch = parts.year === selectedYear;
       const deviceMatch =
         selectedDevice === "all" || detection.device === selectedDevice;
       return monthMatch && yearMatch && deviceMatch;
@@ -170,7 +233,19 @@ function Reports() {
       }
       const data = await response.json();
       setDetections(data);
+      // Initialize filteredData using server timezone defaults
       setFilteredData(data);
+
+      // Also fetch server time so UI can display/report server timestamp
+      try {
+        const tResp = await fetch(`/api/server_time`);
+        if (tResp.ok) {
+          const tjson = await tResp.json();
+          setServerTime(tjson);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch server time:", e);
+      }
     } catch (error) {
       console.error("Error fetching detections:", error);
     } finally {
@@ -441,16 +516,16 @@ function Reports() {
             ? parsed.coordinates.longitude
             : null;
 
-        // Format timestamp to be more compact
-        const timestamp = new Date(detection.timestamp);
-        const formattedDate = timestamp.toLocaleDateString("en-US", {
+        // Format timestamp in server timezone to be more compact
+        const formattedDate = formatInTZ(detection.timestamp, {
           month: "short",
           day: "2-digit",
           year: "numeric",
         });
-        const formattedTime = timestamp.toLocaleTimeString("en-US", {
+        const formattedTime = formatInTZ(detection.timestamp, {
           hour: "2-digit",
           minute: "2-digit",
+          hour12: false,
         });
 
         // Clean detection message (remove prefix if present)
@@ -773,10 +848,23 @@ function Reports() {
     const monthlyData = Array(12).fill(0);
 
     detections.forEach((detection) => {
-      const date = new Date(detection.timestamp);
-      const monthIndex = date.getMonth();
-      if (detection.detection.includes("Chainsaw")) {
-        monthlyData[monthIndex]++;
+      try {
+        const parts = tzDateParts(detection.timestamp);
+        const monthIndex = parts.month;
+        if (
+          detection.detection &&
+          detection.detection.includes("Chainsaw") &&
+          monthIndex != null
+        ) {
+          monthlyData[monthIndex]++;
+        }
+      } catch (e) {
+        // fallback to client timezone parsing
+        const date = new Date(normalizeISOWithTZ(detection.timestamp));
+        const monthIndex = date.getMonth();
+        if (detection.detection && detection.detection.includes("Chainsaw")) {
+          monthlyData[monthIndex]++;
+        }
       }
     });
 
@@ -812,37 +900,44 @@ function Reports() {
   const prepareLineChartData = () => {
     const yearlyTotals = {};
 
-    // Count detections by year with robust date parsing
+    // Count detections by year using server timezone
     detections.forEach((d) => {
       if (!d || !d.timestamp) return;
-
       try {
-        const date = new Date(d.timestamp);
-        // Check if date is valid
-        if (isNaN(date.getTime())) {
-          console.warn("Invalid timestamp:", d.timestamp);
-          return;
-        }
-
-        const year = date.getFullYear();
-        // Check if detection message exists and contains "Chainsaw"
+        const parts = tzDateParts(d.timestamp);
+        const year = parts.year;
         if (
+          year != null &&
           d.detection &&
           typeof d.detection === "string" &&
           d.detection.toLowerCase().includes("chainsaw")
         ) {
           yearlyTotals[year] = (yearlyTotals[year] || 0) + 1;
         }
-      } catch (error) {
-        console.warn("Error parsing timestamp:", d.timestamp, error);
+      } catch (err) {
+        // fallback to client timezone
+        try {
+          const date = new Date(normalizeISOWithTZ(d.timestamp));
+          const year = date.getFullYear();
+          if (
+            d.detection &&
+            typeof d.detection === "string" &&
+            d.detection.toLowerCase().includes("chainsaw")
+          ) {
+            yearlyTotals[year] = (yearlyTotals[year] || 0) + 1;
+          }
+        } catch (e) {
+          // ignore
+        }
       }
     });
 
-    // Find the earliest year and current year
+    // Find the earliest year and current year (current year according to server TZ)
     const allYears = Object.keys(yearlyTotals)
       .map(Number)
       .filter((y) => !isNaN(y));
-    const currentYear = new Date().getFullYear();
+    const currentYear =
+      tzDateParts(new Date()).year || new Date().getFullYear();
     const earliestYear =
       allYears.length > 0 ? Math.min(...allYears) : currentYear;
 
@@ -987,10 +1082,17 @@ function Reports() {
         typeof d.detection === "string" &&
         d.detection.toLowerCase().includes("chainsaw")
       ) {
-        const date = new Date(d.timestamp);
-        if (isNaN(date.getTime())) return;
-        const h = date.getHours();
-        hours[h]++;
+        try {
+          const parts = tzDateParts(d.timestamp);
+          const h = parts.hour;
+          if (h != null) hours[h]++;
+        } catch (e) {
+          const date = new Date(normalizeISOWithTZ(d.timestamp));
+          if (!isNaN(date.getTime())) {
+            const h = date.getHours();
+            hours[h]++;
+          }
+        }
       }
     });
 
@@ -1058,15 +1160,21 @@ function Reports() {
     },
     {
       field: "timestamp",
-      headerName: "Timestamp",
+      headerName: serverTime
+        ? `Timestamp (${serverTime.timezone})`
+        : "Timestamp",
       flex: 1,
       minWidth: 250,
       headerAlign: "center",
       renderCell: (params) => {
-        return new Date(params.row.timestamp).toLocaleString("en-US", {
+        // Format timestamp in server timezone (Asia/Kuala_Lumpur / UTC+08)
+        const ts = params.row.timestamp;
+        const formatted = formatInTZ(ts, {
           dateStyle: "medium",
           timeStyle: "medium",
+          timeZoneName: "short",
         });
+        return <span>{formatted}</span>;
       },
     },
     {
@@ -1177,6 +1285,30 @@ function Reports() {
 
   return (
     <div className="reports-container">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        <div />
+        <div style={{ fontSize: "0.9rem", color: "#444" }}>
+          {serverTime ? (
+            <span>
+              Server time ({serverTime.timezone}):{" "}
+              {formatInTZ(serverTime.server_time, {
+                dateStyle: "medium",
+                timeStyle: "medium",
+                timeZoneName: "short",
+              })}
+            </span>
+          ) : (
+            <span>Loading server time...</span>
+          )}
+        </div>
+      </div>
       {/* Charts Row */}
       <div className="charts-container">
         {/* BAR CHART */}

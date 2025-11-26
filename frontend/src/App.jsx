@@ -106,6 +106,7 @@ function App() {
         detectionId={latestDetection?._id}
         device={latestDetection?.device}
         location={latestDetection?.location}
+        timestamp={latestDetection?.timestamp}
       />
     </BrowserRouter>
   );

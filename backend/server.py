@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import gridfs
-from datetime import datetime
+from datetime import datetime, timezone
 try:
     # Python 3.9+ zoneinfo
     from zoneinfo import ZoneInfo
@@ -17,6 +17,24 @@ def _serialize_value(v):
     # Convert common non-JSON types to JSON-friendly ones
     if isinstance(v, ObjectId):
         return str(v)
+    # Handle datetimes explicitly: ensure ISO string includes timezone offset
+    if isinstance(v, datetime):
+        try:
+            # If naive, assume it's stored as UTC and attach UTC tzinfo
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
+            # Convert to server display timezone if available
+            if 'TZ' in globals() and TZ is not None:
+                try:
+                    v = v.astimezone(TZ)
+                except Exception:
+                    pass
+            return v.isoformat()
+        except Exception:
+            try:
+                return v.isoformat()
+            except Exception:
+                pass
     if hasattr(v, 'isoformat'):
         try:
             return v.isoformat()
@@ -178,5 +196,21 @@ def upload_detection_audio():
         print(f"Error uploading audio: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+
+
+
+@app.route('/api/server_time', methods=['GET'])
+def api_server_time():
+    """Return the current server time and timezone used for timestamps."""
+    try:
+        now = datetime.now(tz=TZ) if 'TZ' in globals() and TZ is not None else datetime.utcnow()
+        tz_name = "Asia/Kuala_Lumpur" if 'TZ' in globals() and TZ is not None else "UTC"
+        return jsonify({"server_time": now.isoformat(), "timezone": tz_name}), 200
+    except Exception as e:
+        print(f"Error returning server time: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
 if __name__ == '__main__':
+    # Start the Flask development server after all routes are defined
     app.run(host='0.0.0.0', port=5000, debug=True)  # Use your actual IP
