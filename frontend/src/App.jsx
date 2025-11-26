@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Login from "./login/Login";
 import Layout from "./Layout/Layout";
 import Dashboard from "./dashboard/Dashboard";
-import Reports from "./reports/Reports";
+import Reports from "./Reports/Reports";
 import PrivateRoute from "/PrivateRoute";
 import DetectionAlert from "./components/DetectionAlert";
 import About from "./about/About.jsx";
@@ -107,6 +107,8 @@ function App() {
         device={latestDetection?.device}
         location={latestDetection?.location}
         timestamp={latestDetection?.timestamp}
+        latitude={latestDetection?.latitude}
+        longitude={latestDetection?.longitude}
       />
     </BrowserRouter>
   );

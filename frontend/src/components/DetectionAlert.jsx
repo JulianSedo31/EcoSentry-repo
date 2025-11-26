@@ -153,15 +153,19 @@ const DetectionAlert = ({
           const parsed = parseDetectionMessage(message) || {};
           const coords = parsed.coordinates || null;
 
+          // Check if prop coordinates are valid numbers (not null/undefined/NaN)
+          const hasPropLat = propLatitude != null && !isNaN(parseFloat(propLatitude));
+          const hasPropLon = propLongitude != null && !isNaN(parseFloat(propLongitude));
+          
           const lat =
-            propLatitude != null
-              ? propLatitude
+            hasPropLat
+              ? parseFloat(propLatitude)
               : coords
               ? coords.latitude
               : null;
           const lon =
-            propLongitude != null
-              ? propLongitude
+            hasPropLon
+              ? parseFloat(propLongitude)
               : coords
               ? coords.longitude
               : null;
