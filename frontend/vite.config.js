@@ -8,7 +8,7 @@ export default defineConfig({
     // Proxy /api requests to the backend during development. Update target as needed.
     proxy: {
       "/api": {
-        target: "http://172.20.10.13:5000",
+        target: "http://10.19.143.245:5000",
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, "/api"),

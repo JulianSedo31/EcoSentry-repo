@@ -5,10 +5,8 @@ import os
 import sounddevice as sd
 import time
 import serial  # For serial communication with LoRa module
-
-# Manual GPS coordinates (use these instead of attempting a live GPS fix)
-MANUAL_LAT = 8.15074855
-MANUAL_LON = 125.13178480
+import subprocess
+import json  # <-- added for GPS data parsing
 
 # ==========================
 #  AUDIO FEATURE EXTRACTION
@@ -104,7 +102,30 @@ def send_lora_message(message, retries=3):
     print("Failed to send message after retries.")
     return False
 
-# (GPS via gpspipe removed — using manual coordinates instead)
+# ==========================
+#  GPS FUNCTION (copied from your final8.py)
+# ==========================
+def get_current_fix(timeout_s=3.0):
+    """Fetch GPS coordinates using gpsd tools."""
+    try:
+        result = subprocess.run(['gpspipe', '-w', '-n', '10'],
+                              capture_output=True, text=True, timeout=timeout_s)
+
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                try:
+                    data = json.loads(line)
+                    if data.get('class') == 'TPV':
+                        lat = data.get('lat')
+                        lon = data.get('lon')
+                        if lat is not None and lon is not None:
+                            return float(lat), float(lon)
+                except (json.JSONDecodeError, KeyError, ValueError):
+                    continue
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    return None, None
 
 # ==========================
 #  MAIN DETECTION LOOP
@@ -150,24 +171,29 @@ while True:
             result = "Chainsaw Detected"
             print(f"Result: {result}")
 
-            # Use manual GPS coordinates and send standardized ALERT message
-            lat = MANUAL_LAT
-            lon = MANUAL_LON
-            # Standard format expected by the frontend parser: ALERT,CHAINSAW,<lat>,<lon>
-            gps_message = f"ALERT,CHAINSAW,{lat:.8f},{lon:.8f}"
-            print(f"📍 Using manual GPS: {lat:.8f}, {lon:.8f} (sending ALERT message)")
+            # Get GPS coordinates
+            lat, lon = get_current_fix()
+            if lat is not None and lon is not None:
+                gps_message = f"{result},{lat:.8f},{lon:.8f}"
+                print(f"📍 GPS: {lat:.8f}, {lon:.8f}")
+            else:
+                gps_message = f"{result},NOFIX"
+                print("⚠️ No GPS fix available")
 
             send_lora_message(gps_message)
 
         elif avg_similarity_pct <= 70:
-            result = "Possible Chainsaw Detected"
+            result = "⚠ Possible Chainsaw Detected"
             print(f"Result: {result}")
 
-            # Use manual GPS coordinates and send standardized ALERT message
-            lat = MANUAL_LAT
-            lon = MANUAL_LON
-            gps_message = f"ALERT,CHAINSAW,{lat:.8f},{lon:.8f}"
-            print(f"📍 Using manual GPS: {lat:.8f}, {lon:.8f} (sending ALERT message)")
+            # Get GPS coordinates
+            lat, lon = get_current_fix()
+            if lat is not None and lon is not None:
+                gps_message = f"{result},{lat:.8f},{lon:.8f}"
+                print(f"📍 GPS: {lat:.8f}, {lon:.8f}")
+            else:
+                gps_message = f"{result},NOFIX"
+                print("⚠️ No GPS fix available")
 
             send_lora_message(gps_message)
 

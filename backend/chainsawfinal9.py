@@ -6,7 +6,8 @@ import sounddevice as sd
 from scipy.io.wavfile import write
 import time
 import serial  # For serial communication with LoRa module
-
+import subprocess
+import json  # <-- added for GPS data parsing
 import requests
 
 # ==========================
@@ -40,15 +41,11 @@ def record_audio(duration, filename):
 # ==========================
 #  LORA COMMUNICATION
 # ==========================
-LO_RA_PORT = '/dev/ttyACM0'  # Adjust to your device path
+LO_RA_PORT = '/dev/ttyACM1'  # Adjust to your device path
 LO_RA_BAUD = 115200
 
 # HTTP upload endpoint for recorded audio (adjust to your Flask server IP/port)
-UPLOAD_URL = "http://10.19.143.245:5000/api/detection/audio_upload"
-
-# Manual GPS coordinates (use tchese instead of attempting a live GPS fix)
-MANUAL_LAT = 8.15074855
-MANUAL_LON = 125.13178480
+UPLOAD_URL = "http://192.168.1.237:5000/api/detection/audio_upload"
 
 try:
     ser = serial.Serial(LO_RA_PORT, LO_RA_BAUD, timeout=1)
@@ -109,7 +106,30 @@ def upload_audio_file(file_path, device="EcoSentry-Pi", location="Can-ayan, Buki
         print(f"Error uploading audio file: {e}")
         return False
 
+# ==========================
+#  GPS FUNCTION (copied from your final8.py)
+# ==========================
+def get_current_fix(timeout_s=3.0):
+    """Fetch GPS coordinates using gpsd tools."""
+    try:
+        result = subprocess.run(['gpspipe', '-w', '-n', '10'],
+                              capture_output=True, text=True, timeout=timeout_s)
 
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                try:
+                    data = json.loads(line)
+                    if data.get('class') == 'TPV':
+                        lat = data.get('lat')
+                        lon = data.get('lon')
+                        if lat is not None and lon is not None:
+                            return float(lat), float(lon)
+                except (json.JSONDecodeError, KeyError, ValueError):
+                    continue
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    return None, None
 
 # ==========================
 #  MAIN DETECTION LOOP
@@ -156,11 +176,14 @@ while True:
             result = "Chainsaw Detected"
             print(f"Result: {result}")
 
-            # Use manual GPS coordinates
-            lat = MANUAL_LAT
-            lon = MANUAL_LON
-            gps_message = f"{result},{lat:.8f},{lon:.8f}"
-            print(f"📍 Using manual GPS: {lat:.8f}, {lon:.8f}")
+            # Get GPS coordinates
+            lat, lon = get_current_fix()
+            if lat is not None and lon is not None:
+                gps_message = f"{result},{lat:.8f},{lon:.8f}"
+                print(f"📍 GPS: {lat:.8f}, {lon:.8f}")
+            else:
+                gps_message = f"{result},NOFIX"
+                print("⚠️ No GPS fix available")
 
             send_lora_message(gps_message)
             # Upload the recorded audio file to the web server and WAIT until it succeeds
@@ -186,11 +209,14 @@ while True:
             result = "⚠ Possible Chainsaw Detected"
             print(f"Result: {result}")
 
-            # Use manual GPS coordinates
-            lat = MANUAL_LAT
-            lon = MANUAL_LON
-            gps_message = f"{result},{lat:.8f},{lon:.8f}"
-            print(f"📍 Using manual GPS: {lat:.8f}, {lon:.8f}")
+            # Get GPS coordinates
+            lat, lon = get_current_fix()
+            if lat is not None and lon is not None:
+                gps_message = f"{result},{lat:.8f},{lon:.8f}"
+                print(f"📍 GPS: {lat:.8f}, {lon:.8f}")
+            else:
+                gps_message = f"{result},NOFIX"
+                print("⚠️ No GPS fix available")
 
             send_lora_message(gps_message)
             # Upload the recorded audio file to the web server and WAIT until it succeeds

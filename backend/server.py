@@ -2,6 +2,13 @@ from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import gridfs
 from datetime import datetime
+try:
+    # Python 3.9+ zoneinfo
+    from zoneinfo import ZoneInfo
+    TZ = ZoneInfo("Asia/Kuala_Lumpur")
+except Exception:
+    # Fallback: use UTC if zoneinfo not available
+    TZ = None
 from flask_cors import CORS
 from bson import ObjectId
 from flask import Response
@@ -38,7 +45,8 @@ fs = gridfs.GridFS(db)
 @app.route('/insert_detection', methods=['POST'])
 def insert_detection():
     data = request.get_json()  # <- gets JSON from ESP32
-    data['timestamp'] = datetime.utcnow()
+    # Use timezone-aware timestamp in server timezone when available
+    data['timestamp'] = datetime.now(tz=TZ) if TZ is not None else datetime.utcnow()
     
     # Parse GPS coordinates from detection message if available
     if 'detection' in data:
@@ -143,7 +151,7 @@ def upload_detection_audio():
 
         # Build detection document from optional form fields
         doc = {
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(tz=TZ) if TZ is not None else datetime.utcnow(),
             'device': request.form.get('device'),
             'location': request.form.get('location'),
             'detection': request.form.get('detection'),
