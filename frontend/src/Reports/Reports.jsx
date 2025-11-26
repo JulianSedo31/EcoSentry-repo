@@ -1318,13 +1318,6 @@ function Reports() {
             <Bar data={prepareChartData()} options={chartOptions} />
           </div>
         </div>
-        {/* LINE CHART */}
-        <div className="chart-box">
-          <h3 className="chart-title">Total Chainsaw Detections per Year</h3>
-          <div style={{ position: "relative", height: "90%", width: "100%" }}>
-            <Line data={prepareLineChartData()} options={lineChartOptions} />
-          </div>
-        </div>
         {/* DEVICE CHART */}
         <div className="chart-box">
           <h3 className="chart-title">Detections by Device</h3>
@@ -1347,7 +1340,7 @@ function Reports() {
         <div className="chart-box">
           <h3 className="chart-title">Detections by Hour of Day</h3>
           <div style={{ position: "relative", height: "90%", width: "100%" }}>
-            <Bar data={prepareHourlyChartData()} options={chartOptions} />
+            <Line data={prepareHourlyChartData()} options={chartOptions} />
           </div>
         </div>
       </div>
